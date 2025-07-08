@@ -25,7 +25,7 @@ pip install python-sat
 ### 2. Run the script
 
 ```bash
-python main.py
+python pattern_generator.py
 ```
 
 This will create a directory named `patterns/<SHIFT_NAME>/` containing up to `MAX_PATTERNS` pattern files.
@@ -89,6 +89,11 @@ Each file contains a readable \( N 	imes N \) grid such as:
 ```
 
 ---
+
+## 🧬 Random SFT Generator
+
+This project includes a simple way to generate random nearest-neighbor shifts of finite type (SFTs) by sampling forbidden adjacent symbol pairs (also called dominoes) from the set of all possible pairs over a finite alphabet. Each domino (e.g., ('1', '0')) may be randomly forbidden in either the horizontal or vertical direction, or both. This randomized process defines a locally constrained 2D shift space. Once such a shift is defined by its forbidden pairs, it can be passed to the SAT-based pattern generator, which searches for locally admissible patterns on finite boxes. You can generate a random SFT by calling the provided function generate_random_sft(...), then use its output as the FORBIDDEN_PAIRS input to the main pattern generation script.
+
 
 ## ⚠️ Notes
 

@@ -5,10 +5,11 @@ from itertools import product
 # Parameters
 N = 19  # box size: B_n = {0,...,n-1}^2
 ALPHABET = ['0', '1'] # alphabet of the shift
-NAME = 'full_shift' # name of the shift
-FORBIDDEN_PAIRS = [
+NAME = 'quadrant' # name of the shift
+FORBIDDEN_PAIRS = [(('0', '1'), 'horizontal'),
+                   (('0', '1'), 'vertical'),
 ] # forbidden dominos - the shift is assume to be nearest-neighbor.
-MAX_PATTERNS = 3 # limit on the number of generated patterns.
+MAX_PATTERNS = 15 # limit on the number of generated patterns.
 
 # ID of variables, depending on the position (i,j) and the index of the letter in the alphabet (a_idx).
 def var_id(i, j, a_idx):
