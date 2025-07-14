@@ -9,9 +9,6 @@ The following types of masking are supported:
 - Masking a centered sub-box
 - Masking a "crown" region (an outer box minus an inner box)
 - Keeping only a centered sub-box and masking everything else
-
-Typical use case: modifying subshift pattern samples for tasks such as inpainting, occlusion
-training for machine learning, or visual inspection of constrained regions.
 """
 
 import os
