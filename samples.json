@@ -1,0 +1,34 @@
+{
+  "subshift_11": [
+    [
+      [
+        "0",
+        "0"
+      ],
+      "horizontal"
+    ],
+    [
+      [
+        "1",
+        "0"
+      ],
+      "horizontal"
+    ]
+  ],
+  "subshift_12": [
+    [
+      [
+        "1",
+        "0"
+      ],
+      "horizontal"
+    ],
+    [
+      [
+        "1",
+        "1"
+      ],
+      "horizontal"
+    ]
+  ]
+}

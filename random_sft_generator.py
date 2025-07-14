@@ -1,6 +1,7 @@
 import random
 from itertools import product
 
+
 def generate_random_sft(alphabet, forbid_prob=0.1, seed=None):
     """
     Randomly generates a nearest-neighbor SFT by forbidding dominoes
@@ -16,7 +17,9 @@ def generate_random_sft(alphabet, forbid_prob=0.1, seed=None):
 
     for a, b in product(alphabet, repeat=2):
         for direction in directions:
-            if random.random() < forbid_prob:
+            rand_number = random.random()
+            # print(a,b,rand_number)
+            if rand_number < forbid_prob:
                 forbidden_pairs.append(((a, b), direction))
     
     return forbidden_pairs
@@ -24,9 +27,9 @@ def generate_random_sft(alphabet, forbid_prob=0.1, seed=None):
 
 
 if __name__ == "__main__":
-    ALPHABET = ['0','1','2','3']
-    FORBID_PROB = 0.3
-    FORBIDDEN_PAIRS = generate_random_sft(ALPHABET, forbid_prob=FORBID_PROB, seed=42)
+    ALPHABET = ['0','1']
+    FORBID_PROB = 0.25
+    FORBIDDEN_PAIRS = generate_random_sft(ALPHABET, forbid_prob=FORBID_PROB)
 
     print("Randomly generated forbidden pairs:")
     for pair in FORBIDDEN_PAIRS:
