@@ -1,102 +1,114 @@
-# 🧩 Pattern Generator for Nearest-Neighbor 2D Shifts of Finite Type
+# 🧩 Pattern Generator for Nearest-Neighbor 2D Shifts of Finite Type (SFTs)
 
-This Python script uses a SAT solver to generate locally admissible patterns on a finite \( N 	imes N \) grid for a 2D **nearest-neighbor shift of finite type (SFT)**. Each generated pattern satisfies the shift constraints locally, and is saved in a structured format for inspection or further processing.
+This Python project provides a full pipeline for **generating random nearest-neighbor 2D SFTs** over a finite alphabet and producing **locally admissible patterns** for each subshift using a **SAT solver**. All data is saved in structured folders for easy inspection and reuse.
 
 ---
 
 ## 📦 Features
 
-- Customizable alphabet and shift definition via **forbidden neighbor pairs**
-- Supports **nearest-neighbor SFTs** (horizontal and vertical adjacency)
-- Uses a **SAT solver** to efficiently generate admissible configurations
-- Saves patterns in individual `.txt` files as clean 2D grids
-- Limits the number of generated patterns to avoid combinatorial explosion
+- Random generation of **nearest-neighbor SFTs** over a user-specified alphabet
+- Forbidden local constraints sampled **independently per domino and direction**
+- Efficient generation of locally admissible **n×n patterns** using a SAT solver
+- Supports batch creation of multiple subshifts with **non-overlapping identifiers**
+- Patterns stored as human-readable `.txt` files in subfolders
+- All forbidden constraints saved in a central `samples.json` file
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Install the required dependency
+### 1. Install the SAT solver dependency
 
 ```bash
 pip install python-sat
 ```
 
-### 2. Run the script
+### 2. Run the main sample generator
 
 ```bash
-python pattern_generator.py
+python generate_samples.py
 ```
 
-This will create a directory named `patterns/<SHIFT_NAME>/` containing up to `MAX_PATTERNS` pattern files.
+This will:
+- Randomly generate a new nearest-neighbor SFT (i.e. forbidden dominoes)
+- Assign it a unique name like `subshift_3`
+- Generate up to `MAX_PATTERNS` admissible patterns on a finite box
+- Save everything under the `patterns/` folder and log metadata in `samples.json`
 
 ---
 
-## 🛠 Configuration
+## ⚙️ Configuration
 
-Edit the top of `main.py` to configure the following parameters:
-
-```python
-N = 19                     # Size of the box: B_n = {0,...,n-1}^2
-ALPHABET = ['0', '1']      # Alphabet for the SFT
-NAME = 'full_shift'        # Name used for the output folder
-FORBIDDEN_PAIRS = [        # Forbidden adjacent pairs (nearest-neighbor)
-    # Example: (('0', '1'), 'horizontal'),
-    #          (('1', '1'), 'vertical'),
-]
-MAX_PATTERNS = 3           # Number of patterns to generate
-```
-
-### Forbidden Pair Format
-
-Each forbidden pattern is a tuple of the form:
+Edit the bottom of `generate_samples.py` to control generation parameters:
 
 ```python
-((symbol1, symbol2), direction)
+ALPHABET = ['0', '1']        # Finite symbol alphabet
+FORBID_PROB = 0.3            # Probability to forbid each domino (a, b) per direction
+N = 19                       # Pattern size: B_n = {0,...,n−1}^2
+MAX_PATTERNS = 4             # Max patterns to generate per subshift
+NUM_SAMPLES = 1              # Number of subshifts to create
 ```
 
-Where `direction` is either `'horizontal'` or `'vertical'`. For example:
-
-```python
-FORBIDDEN_PAIRS = [
-    (('1', '1'), 'horizontal'),
-    (('1', '1'), 'vertical')
-]
-```
-
-Forbids two adjacent `1`s in both directions.
+You can run this script repeatedly: it will continue from the highest numbered subshift in the `patterns/` folder.
 
 ---
 
-## 📂 Output
+## 📂 Output Structure
 
-The generated patterns are saved in:
+After running `generate_samples.py`, you will have:
 
 ```
 patterns/
-└── <SHIFT_NAME>/
-    ├── pattern_000.txt
-    ├── pattern_001.txt
-    ├── ...
+├── subshift_0/
+│   ├── pattern_000.txt
+│   ├── pattern_001.txt
+│   └── ...
+├── subshift_1/
+│   └── ...
+samples.json
 ```
 
-Each file contains a readable \( N 	imes N \) grid such as:
+- Each folder `subshift_k/` contains admissible `n×n` patterns for the corresponding SFT.
+- Each pattern is stored in plain text format:
 
 ```
-0 0 1 1
-1 0 0 1
+0 1 0 0 1
+1 0 0 1 1
 ...
+```
+
+- The file `samples.json` maps each subshift name to its list of forbidden dominoes:
+
+```json
+{
+  "subshift_0": [ [["0", "1"], "horizontal"], [["1", "1"], "vertical"] ],
+  "subshift_1": [ ... ]
+}
 ```
 
 ---
 
-## 🧬 Random SFT Generator
+## 🧬 Random SFT Generation
 
-This project includes a simple way to generate random nearest-neighbor shifts of finite type (SFTs) by sampling forbidden adjacent symbol pairs (also called dominoes) from the set of all possible pairs over a finite alphabet. Each domino (e.g., ('1', '0')) may be randomly forbidden in either the horizontal or vertical direction, or both. This randomized process defines a locally constrained 2D shift space. Once such a shift is defined by its forbidden pairs, it can be passed to the SAT-based pattern generator, which searches for locally admissible patterns on finite boxes. You can generate a random SFT by calling the provided function generate_random_sft(...), then use its output as the FORBIDDEN_PAIRS input to the main pattern generation script.
+The module `random_sft_generator.py` provides:
 
+```python
+generate_random_sft(alphabet, forbid_prob=0.1, seed=None)
+```
 
-## ⚠️ Notes
+It returns a list of forbidden nearest-neighbor dominoes such as:
 
-- Generated patterns are **locally admissible**: they satisfy all constraints inside the finite box. Global extendibility is not guaranteed.
-- No symmetry reduction is applied: patterns may be equivalent up to translation or rotation.
-- Pattern blocking is handled via **blocking clauses**, ensuring no repeats among the generated outputs.
+```python
+[(('0', '1'), 'horizontal'), (('1', '1'), 'vertical')]
+```
+
+Each domino `(a, b)` is forbidden in each direction independently with the given probability. This defines a random SFT, which is then passed to the SAT solver to generate valid configurations.
+
+---
+
+## 🔍 Technical Notes
+
+- All generated patterns are **locally admissible**, i.e., they satisfy all forbidden constraints on the finite grid.
+- **Global admissibility** (i.e., extendibility to an infinite configuration) is not checked.
+- The SAT-based generation includes **blocking clauses** to ensure distinct patterns.
+- The system currently supports **nearest-neighbor constraints only** (i.e., 2×1 or 1×2 dominos).
