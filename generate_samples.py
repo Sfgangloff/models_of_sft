@@ -21,6 +21,7 @@ import re
 import json
 from random_sft_generator import generate_random_sft
 from pattern_generator import generate_patterns
+from subpattern_extractor import keep_box_in_patterns, mask_crown_in_patterns, mask_subbox_in_patterns
 
 FOLDER_PATH = "patterns"
 SAMPLES_PATH = "samples.json"
@@ -47,10 +48,11 @@ def get_max_subshift_index(folder_path):
     
     return max_index
 
-def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples):
+def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples,subbox_size):
     """
     Generates a given number of random SFTs by forbidding local patterns with 
-    independent probability, and stores their descriptions and example patterns.
+    independent probability, and stores their descriptions and example patterns, as well as 
+    extracted subpatterns.
 
     Each new subshift is saved in a folder `patterns/subshift_k`, where `k` is 
     chosen sequentially. Forbidden pairs are recorded in `samples.json`.
@@ -61,6 +63,7 @@ def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples):
         n (int): Size of the square box B_n = {0, ..., n-1}^2 for pattern generation.
         max_patterns (int): Maximum number of patterns to generate per subshift.
         num_samples (int): Number of new subshifts to generate.
+        subbox_size (int): Size of the subbox used to extract subpatterns.
     """
     max_idx = get_max_subshift_index(FOLDER_PATH)
 
@@ -85,6 +88,24 @@ def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples):
         # Store forbidden pairs in the JSON structure (as-is; ensure serializable format upstream)
         forbidden_dict[name] = forbidden_pairs
 
+        input_dir = os.path.join(FOLDER_PATH, name)
+        output_dir = os.path.join("subbox_masked_patterns",name)
+
+        mask_subbox_in_patterns(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            box_size=subbox_size
+        )
+
+        output_dir = os.path.join("outside_subbox_masked_patterns",name)
+
+        keep_box_in_patterns(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            box_size=subbox_size
+        )
+
+
     # Save updated forbidden pair records to JSON file
     with open(SAMPLES_PATH, 'w') as f:
         json.dump(forbidden_dict, f, indent=2)
@@ -96,5 +117,6 @@ if __name__ == "__main__":
     N = 19  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
     MAX_PATTERNS = 4  # Max number of patterns to generate for each SFT
     NUM_SAMPLES = 1   # Number of SFTs to generate
+    SUBBOX_SIZE = 7 # Size of subbox used to extract subpatterns
 
-    generate_sample(ALPHABET, FORBID_PROB, N, MAX_PATTERNS, NUM_SAMPLES)
+    generate_sample(ALPHABET, FORBID_PROB, N, MAX_PATTERNS, NUM_SAMPLES,SUBBOX_SIZE)
