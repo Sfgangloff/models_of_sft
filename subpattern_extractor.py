@@ -1,3 +1,19 @@
+"""
+subpattern_extractor.py
+
+This module provides utility functions for modifying 2D symbolic patterns (stored as .txt files)
+by masking selected regions with the symbol '*'. These functions operate on folders of pattern files
+and create new versions with the specified regions masked or preserved.
+
+The following types of masking are supported:
+- Masking a centered sub-box
+- Masking a "crown" region (an outer box minus an inner box)
+- Keeping only a centered sub-box and masking everything else
+
+Typical use case: modifying subshift pattern samples for tasks such as inpainting, occlusion
+training for machine learning, or visual inspection of constrained regions.
+"""
+
 import os
 
 def keep_box_in_patterns(input_dir, output_dir, box_size):
@@ -8,7 +24,7 @@ def keep_box_in_patterns(input_dir, output_dir, box_size):
     Parameters:
         input_dir (str): Path to the folder with original .txt pattern files.
         output_dir (str): Path to the folder where masked patterns will be saved.
-        box_size (int): Size of the square region to keep (box_size x box_size).
+        box_size (int): Size of the square region to keep (box_size x box_size), centered in the grid.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -50,8 +66,8 @@ def mask_crown_in_patterns(input_dir, output_dir, outer_box_size, inner_box_size
     Parameters:
         input_dir (str): Folder containing input .txt pattern files.
         output_dir (str): Folder to save crown-masked patterns.
-        outer_box_size (int): Size of the full square region to be masked (outer boundary).
-        inner_box_size (int): Size of the inner square to remain visible (must be < outer_box_size).
+        outer_box_size (int): Size of the outer square region to be masked.
+        inner_box_size (int): Size of the inner square to remain visible (must be strictly smaller).
     """
     assert outer_box_size > inner_box_size, "Outer box must be strictly larger than inner box."
     os.makedirs(output_dir, exist_ok=True)
@@ -90,15 +106,16 @@ def mask_crown_in_patterns(input_dir, output_dir, outer_box_size, inner_box_size
 
     print(f"Crown-masked patterns saved in: {output_dir}")
 
+
 def mask_subbox_in_patterns(input_dir, output_dir, box_size):
     """
-    For each pattern file in input_dir, replaces the values inside a square subbox with '*'
+    For each pattern file in input_dir, replaces the values inside a centered square subbox with '*'
     and saves the modified pattern to output_dir.
 
     Parameters:
         input_dir (str): Path to the folder with original .txt pattern files.
         output_dir (str): Path to the folder where masked patterns will be saved.
-        box_size (int): Size of the box to mask (box_size x box_size).
+        box_size (int): Size of the subbox to mask (box_size x box_size), centered in the grid.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -111,11 +128,9 @@ def mask_subbox_in_patterns(input_dir, output_dir, box_size):
             n_rows = len(lines)
             n_cols = len(lines[0]) if n_rows > 0 else 0
 
-            # Compute top-left corner of the box (centered)
             box_top = (n_rows - box_size) // 2
             box_left = (n_cols - box_size) // 2
 
-            # Mask the subbox
             masked_lines = []
             for i in range(n_rows):
                 row = []
@@ -126,7 +141,6 @@ def mask_subbox_in_patterns(input_dir, output_dir, box_size):
                         row.append(lines[i][j])
                 masked_lines.append(row)
 
-            # Save to output directory
             output_path = os.path.join(output_dir, filename)
             with open(output_path, "w") as f:
                 for row in masked_lines:
@@ -134,23 +148,24 @@ def mask_subbox_in_patterns(input_dir, output_dir, box_size):
 
     print(f"Masked patterns saved in: {output_dir}")
 
+
 if __name__ == "__main__":
 
     # mask_subbox_in_patterns(
-    #     input_dir="patterns/subshift_0",      # folder with pattern_000.txt, etc.
-    #     output_dir="subbox_masked_patterns/subshift_0",  # where to save masked patterns
-    #     box_size=7                            # size of the subbox to mask
+    #     input_dir="patterns/subshift_0",
+    #     output_dir="subbox_masked_patterns/subshift_0",
+    #     box_size=7
     # )
 
     # mask_crown_in_patterns(
-    #     input_dir="patterns/subshift_0",               # Folder with original patterns
-    #     output_dir="crown_masked_patterns/subshift_0",        # Folder to save crown-masked patterns
-    #     outer_box_size=11,                             # Outer square size (centered)
-    #     inner_box_size=5                               # Inner square to keep visible
+    #     input_dir="patterns/subshift_0",
+    #     output_dir="crown_masked_patterns/subshift_0",
+    #     outer_box_size=11,
+    #     inner_box_size=5
     # )
 
     keep_box_in_patterns(
-        input_dir="patterns/subshift_0",               # Folder with original patterns
-        output_dir="outside_subbox_masked_patterns/subshift_0",      # Folder to save masked patterns
-        box_size=5                                     # Size of the inner box to keep
+        input_dir="patterns/subshift_0",
+        output_dir="outside_subbox_masked_patterns/subshift_0",
+        box_size=5
     )
