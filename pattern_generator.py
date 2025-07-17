@@ -15,6 +15,8 @@ Dependencies:
 - PySAT (https://pysathq.github.io/)
 """
 
+import numpy as np
+
 from pysat.solvers import Solver
 from pysat.card import CardEnc, EncType
 from itertools import product
@@ -23,7 +25,7 @@ from itertools import product
 # Variable Encoding Helpers
 # -----------------------------------------------------------------------------
 
-def var_id(i, j, a_idx, alphabet, n):
+def var_id(i:int, j:int, a_idx:int, alphabet:list[str], n:int):
     """
     Computes a unique variable ID for the SAT solver based on position (i,j) and alphabet symbol index.
 
@@ -43,7 +45,7 @@ def var_id(i, j, a_idx, alphabet, n):
 # Decoding of SAT model
 # -----------------------------------------------------------------------------
 
-def decode_model(model, alphabet, n):
+def decode_model(model:list[int], alphabet:list[str], n:int):
     """
     Converts a SAT model (a list of integers) into a dictionary representation
     of an n×n pattern with symbols from the alphabet.
@@ -67,7 +69,7 @@ def decode_model(model, alphabet, n):
 # Encoding of SFT constraints
 # -----------------------------------------------------------------------------
 
-def encode_sft(n, alphabet, forbidden_pairs):
+def encode_sft(n:int, alphabet:list[str], forbidden_pairs):
     """
     Encodes the SFT constraints (nearest-neighbor exclusions and one-letter-per-cell constraint)
     into a SAT problem.
@@ -113,7 +115,7 @@ def encode_sft(n, alphabet, forbidden_pairs):
 # Main Pattern Generation Function
 # -----------------------------------------------------------------------------
 
-def generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs):
+def generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs,save_as_txt):
     """
     Generates up to `max_patterns` valid patterns of size n×n avoiding forbidden pairs,
     and saves them to the disk under the folder "patterns/<name>/".
@@ -124,6 +126,7 @@ def generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs):
         max_patterns (int): Maximum number of patterns to generate
         name (str): Name of the subshift, used as subfolder name
         forbidden_pairs (List[((str, str), str)]): Forbidden dominoes in the SFT
+        save_as_txt (bool): if True, save the patterns as separate .txt files. Otherwise, save as a numpy array.
     """
     all_patterns = []
     solver = encode_sft(n, alphabet, forbidden_pairs)
@@ -145,13 +148,27 @@ def generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs):
     output_dir = os.path.join("patterns", name)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save each pattern as a .txt file
-    for idx, pattern in enumerate(all_patterns):
-        filename = os.path.join(output_dir, f"pattern_{idx:03}.txt")
-        with open(filename, "w") as f:
-            for i in range(n):
-                row = [pattern[(i, j)] for j in range(n)]
-                f.write(' '.join(row) + '\n')
+    if save_as_txt:
+        # Save each pattern as a .txt file
+        for idx, pattern in enumerate(all_patterns):
+            filename = os.path.join(output_dir, f"pattern_{idx:03}.txt")
+            with open(filename, "w") as f:
+                for i in range(n):
+                    row = [pattern[(i, j)] for j in range(n)]
+                    f.write(' '.join(row) + '\n')
+    else:
+        # Save all the patterns in an array.
+        pattern_arrays = []
+        for pattern in all_patterns:
+            array_2d = np.array([[pattern[(i, j)] for j in range(n)] for i in range(n)])
+            pattern_arrays.append(array_2d)
+        if pattern_arrays:
+            # Stack into a 3D array of shape (num_patterns, n, n)
+            data = np.stack(pattern_arrays)  # dtype='U1' if values are strings like '0' and '1'
+
+            # Save to a .npy file
+            output_path = os.path.join(output_dir, "all_patterns.npy")
+            np.save(output_path, data)
 
     print(f"{len(all_patterns)} patterns saved in folder '{output_dir}'")
 
@@ -167,6 +184,6 @@ if __name__ == "__main__":
     FORBIDDEN_PAIRS = [          # Forbidden nearest-neighbor dominos
         # Example: (('1', '1'), 'horizontal'), (('1', '1'), 'vertical')
     ]
-    MAX_PATTERNS = 10000         # Maximum number of distinct patterns to generate
+    MAX_PATTERNS = 100         # Maximum number of distinct patterns to generate
 
-    generate_patterns(N, ALPHABET, MAX_PATTERNS, NAME, FORBIDDEN_PAIRS)
+    generate_patterns(N, ALPHABET, MAX_PATTERNS, NAME, FORBIDDEN_PAIRS,False)

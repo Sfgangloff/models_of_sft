@@ -12,6 +12,7 @@ The following types of masking are supported:
 """
 
 import os
+import numpy as np
 
 def keep_box_in_patterns(input_dir, output_dir, box_size):
     """
@@ -53,6 +54,42 @@ def keep_box_in_patterns(input_dir, output_dir, box_size):
                     f.write(" ".join(row) + "\n")
 
     print(f"Masked (keep only box) patterns saved in: {output_dir}")
+
+def keep_box_in_numpy_stack(input_path, output_path, box_size):
+    """
+    Loads a 3D numpy array from `input_path`, where each 2D slice along axis 0 is a pattern.
+    Keeps only a centered `box_size x box_size` region in each slice, masking everything else with `*`.
+    Saves the masked 3D array to `output_path`.
+
+    Parameters:
+        input_path (str): Path to the input `.npy` file (3D array: num_patterns × rows × cols)
+        output_path (str): Path to save the masked `.npy` file
+        box_size (int): Size of the square region to keep
+        mask_symbol (str): Value to use outside the box (default is -1)
+    """
+    patterns = np.load(input_path, allow_pickle=True)
+
+    if patterns.ndim != 3:
+        raise ValueError("Input array must be 3D (stack of 2D patterns)")
+
+    num_patterns, n_rows, n_cols = patterns.shape
+    box_top = (n_rows - box_size) // 2
+    box_left = (n_cols - box_size) // 2
+
+    masked_patterns = np.full_like(patterns, fill_value="*")
+
+    for idx in range(num_patterns):
+        masked_patterns[idx,
+                        box_top:box_top + box_size,
+                        box_left:box_left + box_size] = patterns[idx,
+                                                                 box_top:box_top + box_size,
+                                                                 box_left:box_left + box_size]
+
+    # Ensure the output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    np.save(output_path, masked_patterns)
+    print(f"Masked array saved to: {output_path}")
 
 
 def mask_crown_in_patterns(input_dir, output_dir, outer_box_size, inner_box_size):
@@ -145,6 +182,42 @@ def mask_subbox_in_patterns(input_dir, output_dir, box_size):
 
     print(f"Masked patterns saved in: {output_dir}")
 
+def mask_subbox_in_numpy_stack(input_path, output_path, box_size):
+    """
+    Loads a 3D numpy array from `input_path`, where each 2D slice along axis 0 is a pattern.
+    Replaces the values inside a centered `box_size x box_size` square with `mask_symbol`.
+    Saves the modified 3D array to `output_path`.
+
+    Parameters:
+        input_path (str): Path to the input `.npy` file (shape: num_patterns × rows × cols)
+        output_path (str): Path to save the masked `.npy` file
+        box_size (int): Size of the square subbox to mask
+        mask_symbol (str): Value to place inside the subbox (default is -1)
+    """
+    patterns = np.load(input_path, allow_pickle=True)
+
+    if patterns.ndim != 3:
+        raise ValueError("Input array must be 3D (stack of 2D patterns)")
+
+    num_patterns, n_rows, n_cols = patterns.shape
+    box_top = (n_rows - box_size) // 2
+    box_left = (n_cols - box_size) // 2
+
+    # Copy original patterns to avoid in-place mutation
+    masked_patterns = np.copy(patterns)
+
+    # Apply masking
+    for idx in range(num_patterns):
+        masked_patterns[idx,
+                        box_top:box_top + box_size,
+                        box_left:box_left + box_size] = "*"
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    np.save(output_path, masked_patterns)
+    print(f"Masked subboxes saved to: {output_path}")
+
 
 if __name__ == "__main__":
 
@@ -161,8 +234,10 @@ if __name__ == "__main__":
     #     inner_box_size=5
     # )
 
-    keep_box_in_patterns(
-        input_dir="patterns/subshift_0",
-        output_dir="outside_subbox_masked_patterns/subshift_0",
-        box_size=5
-    )
+    # keep_box_in_patterns(
+    #     input_dir="patterns/subshift_0",
+    #     output_dir="outside_subbox_masked_patterns/subshift_0",
+    #     box_size=5
+    # )
+
+    keep_box_in_numpy_stack("patterns/full_shift/all_patterns.npy", "subbox_masked_patterns/full_shift/all_patterns.npy", 5)

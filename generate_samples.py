@@ -21,12 +21,13 @@ import re
 import json
 from random_sft_generator import generate_random_sft
 from pattern_generator import generate_patterns
-from subpattern_extractor import keep_box_in_patterns, mask_crown_in_patterns, mask_subbox_in_patterns
+from subpattern_extractor import keep_box_in_patterns, mask_crown_in_patterns, mask_subbox_in_patterns,keep_box_in_numpy_stack,mask_subbox_in_numpy_stack
+from utils import empty_folder
 
 FOLDER_PATH = "patterns"
 SAMPLES_PATH = "samples.json"
 
-def get_max_subshift_index(folder_path):
+def get_max_subshift_index(folder_path:str):
     """
     Scans the given folder and returns the maximum integer index `k` such that 
     a subfolder named `subshift_k` exists. If no such folders exist, returns -1.
@@ -48,7 +49,14 @@ def get_max_subshift_index(folder_path):
     
     return max_index
 
-def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples,subbox_size):
+def generate_sample(alphabet:list[str], 
+                    forbid_prob:float, 
+                    n:int,
+                    max_patterns:int, 
+                    num_samples:int,
+                    subbox_size:int,
+                    save_as_txt:bool,
+                    remove_previous_samples:bool):
     """
     Generates a given number of random SFTs by forbidding local patterns with 
     independent probability, and stores their descriptions and example patterns, as well as 
@@ -64,7 +72,16 @@ def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples,subbox_s
         max_patterns (int): Maximum number of patterns to generate per subshift.
         num_samples (int): Number of new subshifts to generate.
         subbox_size (int): Size of the subbox used to extract subpatterns.
+        save_as_txt (bool): if True, save the patterns as separate .txt files. Otherwise, save as a numpy array.
+        remove_previous_samples (bool): if True, removes the previously created samples.
     """
+    if remove_previous_samples:
+        with open("samples.json", "w") as f:
+            f.write("{}")
+        empty_folder("patterns")
+        empty_folder("outside_subbox_masked_patterns")
+        empty_folder("subbox_masked_patterns")
+        empty_folder("crown_masked_patterns")
     max_idx = get_max_subshift_index(FOLDER_PATH)
 
     # Load or initialize the JSON dictionary storing forbidden pairs
@@ -83,27 +100,39 @@ def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples,subbox_s
         name = f"subshift_{idx}"
 
         # Generate and save example patterns consistent with the SFT
-        generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs)
+        generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs,save_as_txt)
 
         # Store forbidden pairs in the JSON structure (as-is; ensure serializable format upstream)
-        forbidden_dict[name] = forbidden_pairs
+        forbidden_dict[name] = {}
+        forbidden_dict[name]["forbidden_pairs"] = forbidden_pairs
+        forbidden_dict[name]["alphabet"] = alphabet
 
         input_dir = os.path.join(FOLDER_PATH, name)
         output_dir = os.path.join("subbox_masked_patterns",name)
 
-        mask_subbox_in_patterns(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            box_size=subbox_size
-        )
+        input_path = os.path.join(input_dir,"all_patterns.npy")
+        output_path = os.path.join(output_dir,"all_patterns.npy")
+        if save_as_txt:
+            mask_subbox_in_patterns(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                box_size=subbox_size
+            )
+        
+        else: 
+            mask_subbox_in_numpy_stack(input_path, output_path, subbox_size)
 
         output_dir = os.path.join("outside_subbox_masked_patterns",name)
+        output_path = os.path.join(output_dir,"all_patterns.npy")
+        if save_as_txt:
+            keep_box_in_patterns(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                box_size=subbox_size
+            )
+        else: 
+            keep_box_in_numpy_stack(input_path, output_path, subbox_size)
 
-        keep_box_in_patterns(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            box_size=subbox_size
-        )
 
 
     # Save updated forbidden pair records to JSON file
@@ -112,11 +141,18 @@ def generate_sample(alphabet, forbid_prob, n, max_patterns, num_samples,subbox_s
 
 if __name__ == "__main__":
     # Example configuration: binary alphabet, 30% forbid probability
-    ALPHABET = ['0', '1']
+    ALPHABET = ['0', '1','2']
     FORBID_PROB = 0.3
     N = 19  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
     MAX_PATTERNS = 4  # Max number of patterns to generate for each SFT
-    NUM_SAMPLES = 1   # Number of SFTs to generate
+    NUM_SAMPLES = 4   # Number of SFTs to generate
     SUBBOX_SIZE = 7 # Size of subbox used to extract subpatterns
 
-    generate_sample(ALPHABET, FORBID_PROB, N, MAX_PATTERNS, NUM_SAMPLES,SUBBOX_SIZE)
+    generate_sample(alphabet=ALPHABET, 
+                    forbid_prob=FORBID_PROB, 
+                    n=N, 
+                    max_patterns=MAX_PATTERNS, 
+                    num_samples=NUM_SAMPLES,
+                    subbox_size=SUBBOX_SIZE,
+                    save_as_txt=False,
+                    remove_previous_samples=True)
