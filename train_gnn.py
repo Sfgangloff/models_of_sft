@@ -16,6 +16,7 @@ from torch_geometric.loader import DataLoader as GeoDataLoader
 from torch_geometric.nn import GCNConv
 import numpy as np
 import networkx as nx
+from sklearn.model_selection import train_test_split
 
 def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-1.0):
     """
@@ -61,12 +62,12 @@ def make_dataset(complete, masked):
     Returns:
         List[torch_geometric.data.Data]: List of graph data objects with fields (x, y, edge_index).
     """
-    H, W, N = complete.shape
+    N,H, W = complete.shape
     edge_index = create_grid_edges(H, W)
     dataset = []
     for i in range(N):
-        x = torch.tensor(masked[:, :, i].flatten(), dtype=torch.float).unsqueeze(1)
-        y = torch.tensor(complete[:, :, i].flatten(), dtype=torch.float).unsqueeze(1)
+        x = torch.tensor(masked[i,:, :].flatten(), dtype=torch.float).unsqueeze(1)
+        y = torch.tensor(complete[i,:, :].flatten(), dtype=torch.float).unsqueeze(1)
         data = Data(x=x, y=y, edge_index=edge_index)
         dataset.append(data)
     return dataset
@@ -133,7 +134,7 @@ def train(model, loader, epochs=20):
             total_loss += loss.item()
         print(f"Epoch {epoch+1:02d}: Loss = {total_loss / len(loader):.4f}")
 
-def run_training(complete_patterns, masked_patterns, model_path, batch_size=10, epochs=20):
+def run_training(complete_patterns, masked_patterns, model_path, batch_size=10, epochs=20,test_ratio=0.1):
     """
     Main training pipeline: prepares dataset, trains the model, and saves it to disk.
 
@@ -148,12 +149,75 @@ def run_training(complete_patterns, masked_patterns, model_path, batch_size=10, 
         GNNModel: The trained model instance.
     """
     dataset = make_dataset(complete_patterns, masked_patterns)
-    loader = GeoDataLoader(dataset, batch_size=batch_size)
+    train_set, test_set = train_test_split(dataset, test_size=test_ratio, random_state=42)
+    train_loader = GeoDataLoader(train_set, batch_size=batch_size)
+
     model = GNNModel()
-    train(model, loader, epochs=epochs)
+    train(model, train_loader, epochs=epochs)
+
     torch.save(model.state_dict(), model_path)
     print(f"Model saved to {model_path}")
-    return model
+
+    return model, test_set
+
+def evaluate(model, test_set):
+    """
+    Evaluates the GNN model on a test set using mean squared error.
+
+    Parameters:
+        model (nn.Module): The trained GNN model.
+        test_set (List[Data]): List of test graphs.
+
+    Returns:
+        float: Average MSE loss over the test set.
+    """
+
+    model.eval()
+    loader = GeoDataLoader(test_set, batch_size=10)
+    loss_fn = nn.MSELoss()
+    total_loss = 0.0
+    count = 0
+
+    with torch.no_grad():
+        for batch in loader:
+            pred = model(batch)
+            loss = loss_fn(pred, batch.y)
+            total_loss += loss.item() * batch.num_graphs
+            count += batch.num_graphs
+
+    avg_loss = total_loss / count
+    print(f"Test MSE: {avg_loss:.4f}")
+    return avg_loss
+
+def inspect_prediction(model, data_point, H, W):
+    """
+    Runs the model on a single test pattern and displays the prediction.
+
+    Parameters:
+        model (GNNModel): Trained model.
+        data_point (torch_geometric.data.Data): One pattern graph.
+        H (int): Height of the original 2D pattern.
+        W (int): Width of the original 2D pattern.
+    """
+    model.eval()
+    print(data_point)
+    with torch.no_grad():
+        pred = model(data_point)
+
+    # Flattened versions
+    predicted = pred.squeeze().cpu().numpy().reshape(H, W)
+    ground_truth = data_point.y.squeeze().cpu().numpy().reshape(H, W)
+    input_masked = data_point.x.squeeze().cpu().numpy().reshape(H, W)
+
+    # Display
+    print("\n🔍 Masked input (x):")
+    print(input_masked)
+
+    print("\n✅ Ground truth (y):")
+    print(ground_truth)
+
+    print("\n🔮 Model prediction:")
+    print(np.round(predicted, decimals=2))
 
 if __name__ == "__main__":
     # Load and preprocess pattern data
@@ -164,10 +228,20 @@ if __name__ == "__main__":
     masked_patterns = convert_string_patterns_to_float(masked_patterns)
 
     # Train and save the model
-    model = run_training(
+    model,test_set = run_training(
         complete_patterns,
         masked_patterns,
         model_path="models/gnn.pt",
         batch_size=10,
         epochs=20
     )
+    # test_loss = evaluate(model, test_set)
+
+    # Pick one pattern (e.g. the first)
+    sample = test_set[0]
+
+    # Recover the original dimensions
+    H, W = 19, 19  # set these to your actual pattern size
+
+    # Run inspection
+    inspect_prediction(model, sample, H, W)
