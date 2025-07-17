@@ -1,4 +1,4 @@
-# 🧩 Pattern Generator for Nearest-Neighbor 2D Shifts of Finite Type (SFTs)
+# 🌎 Pattern Generator for Nearest-Neighbor 2D Shifts of Finite Type (SFTs)
 
 This Python project provides a full pipeline for **generating random nearest-neighbor 2D SFTs** over a finite alphabet and producing **locally admissible patterns** for each subshift using a **SAT solver**. All data is saved in structured folders for easy inspection and reuse.
 
@@ -10,7 +10,7 @@ This Python project provides a full pipeline for **generating random nearest-nei
 - Forbidden local constraints sampled **independently per domino and direction**
 - Efficient generation of locally admissible **n×n patterns** using a SAT solver
 - Supports batch creation of multiple subshifts with **non-overlapping identifiers**
-- Patterns stored as human-readable `.txt` files in subfolders
+- Patterns saved as `.npy` arrays for direct use in downstream processing
 - All forbidden constraints saved in a central `samples.json` file
 
 ---
@@ -55,34 +55,36 @@ You can run this script repeatedly: it will continue from the highest numbered s
 
 ## 📂 Output Structure
 
-After running `generate_samples.py`, you will have:
+After running `generate_samples.py`, the output is organized as follows:
 
 ```
 patterns/
 ├── subshift_0/
-│   ├── pattern_000.txt
-│   ├── pattern_001.txt
-│   └── ...
+│   └── all_patterns.npy
 ├── subshift_1/
-│   └── ...
+│   └── all_patterns.npy
 samples.json
 ```
 
-- Each folder `subshift_k/` contains admissible `n×n` patterns for the corresponding SFT.
-- Each pattern is stored in plain text format:
+- Each folder `subshift_k/` corresponds to a randomly generated nearest-neighbor 2D SFT.
+- The file `all_patterns.npy` contains a NumPy array of shape `(num_patterns, n, n)` and `dtype='<U1'` (i.e., one-character Unicode strings such as `'0'`, `'1'`, etc.).
+- Patterns are stored in symbolic form and are **locally admissible** with respect to the forbidden dominoes associated to that subshift.
 
-```
-0 1 0 0 1
-1 0 0 1 1
-...
-```
-
-- The file `samples.json` maps each subshift name to its list of forbidden dominoes:
+The top-level file `samples.json` maps each subshift name to a dictionary containing both the alphabet and the list of forbidden dominoes that define its local constraints:
 
 ```json
 {
-  "subshift_0": [ [["0", "1"], "horizontal"], [["1", "1"], "vertical"] ],
-  "subshift_1": [ ... ]
+  "subshift_0": {
+    "alphabet": ["0", "1"],
+    "forbidden_pairs": [
+      [["0", "1"], "horizontal"],
+      [["1", "1"], "vertical"]
+    ]
+  },
+  "subshift_1": {
+    "alphabet": ["0", "1"],
+    "forbidden_pairs": [ ... ]
+  }
 }
 ```
 
