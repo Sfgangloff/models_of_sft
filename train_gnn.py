@@ -7,6 +7,11 @@ the full pattern from the masked version.
 
 The model is trained using PyTorch Geometric, and saved to disk upon completion.
 """
+# TODO: output an actual pattern instead of numerical values; 
+# evaluate the accuracy of the model by checking that the pattern actually extends the initial pattern and run SAT solver to check that the 
+# pattern satisfies the rules.
+
+# TODO: enrich the dataset by creating pattern that break the rules, patterns which do not extend, etc. 
 
 import torch
 import torch.nn as nn
@@ -210,13 +215,13 @@ def inspect_prediction(model, data_point, H, W):
     input_masked = data_point.x.squeeze().cpu().numpy().reshape(H, W)
 
     # Display
-    print("\n🔍 Masked input (x):")
+    print("\n Masked input (x):")
     print(input_masked)
 
-    print("\n✅ Ground truth (y):")
+    print("\n Ground truth (y):")
     print(ground_truth)
 
-    print("\n🔮 Model prediction:")
+    print("\n Model prediction:")
     print(np.round(predicted, decimals=2))
 
 if __name__ == "__main__":
