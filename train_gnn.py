@@ -22,8 +22,9 @@ from torch_geometric.nn import GCNConv
 import numpy as np
 import networkx as nx
 from sklearn.model_selection import train_test_split
+from utils import directional_round
 
-def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-1.0):
+def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-10):
     """
     Converts a NumPy array of strings ('0', '1', '*') to float values.
 
@@ -56,23 +57,23 @@ def create_grid_edges(H, W):
     edge_index = torch.tensor(edge_list + [(j, i) for (i, j) in edge_list], dtype=torch.long).t().contiguous()
     return edge_index
 
-def make_dataset(complete, masked):
+def make_dataset(complement, masked):
     """
-    Constructs a dataset of PyTorch Geometric Data objects from complete and masked pattern arrays.
+    Constructs a dataset of PyTorch Geometric Data objects from complement and masked pattern arrays.
 
     Parameters:
-        complete (np.ndarray): Complete pattern array of shape (H, W, N), where N is the number of patterns.
+        complement (np.ndarray): Complement pattern array of shape (H, W, N), where N is the number of patterns.
         masked (np.ndarray): Masked pattern array of same shape, with masked values replaced numerically.
 
     Returns:
         List[torch_geometric.data.Data]: List of graph data objects with fields (x, y, edge_index).
     """
-    N,H, W = complete.shape
+    N,H, W = complement.shape
     edge_index = create_grid_edges(H, W)
     dataset = []
     for i in range(N):
         x = torch.tensor(masked[i,:, :].flatten(), dtype=torch.float).unsqueeze(1)
-        y = torch.tensor(complete[i,:, :].flatten(), dtype=torch.float).unsqueeze(1)
+        y = torch.tensor(complement[i,:, :].flatten(), dtype=torch.float).unsqueeze(1)
         data = Data(x=x, y=y, edge_index=edge_index)
         dataset.append(data)
     return dataset
@@ -139,12 +140,12 @@ def train(model, loader, epochs=20):
             total_loss += loss.item()
         print(f"Epoch {epoch+1:02d}: Loss = {total_loss / len(loader):.4f}")
 
-def run_training(complete_patterns, masked_patterns, model_path, batch_size=10, epochs=20,test_ratio=0.1):
+def run_training(complement_patterns, masked_patterns, model_path, batch_size=10, epochs=20,test_ratio=0.1):
     """
     Main training pipeline: prepares dataset, trains the model, and saves it to disk.
 
     Parameters:
-        complete_patterns (np.ndarray): Full pattern data of shape (H, W, N) with float entries.
+        complement_patterns (np.ndarray): Full pattern data of shape (H, W, N) with float entries.
         masked_patterns (np.ndarray): Masked version of the patterns, same shape.
         model_path (str): Path where the trained model will be saved.
         batch_size (int): Number of patterns per training batch.
@@ -153,7 +154,7 @@ def run_training(complete_patterns, masked_patterns, model_path, batch_size=10, 
     Returns:
         GNNModel: The trained model instance.
     """
-    dataset = make_dataset(complete_patterns, masked_patterns)
+    dataset = make_dataset(complement_patterns, masked_patterns)
     train_set, test_set = train_test_split(dataset, test_size=test_ratio, random_state=42)
     train_loader = GeoDataLoader(train_set, batch_size=batch_size)
 
@@ -222,19 +223,20 @@ def inspect_prediction(model, data_point, H, W):
     print(ground_truth)
 
     print("\n Model prediction:")
-    print(np.round(predicted, decimals=2))
+    print(directional_round(predicted,decimals=0))
 
 if __name__ == "__main__":
+    # TODO: decide which option to take: predict complete pattern or the complement pattern.
     # Load and preprocess pattern data
-    complete_patterns = np.load("patterns/subshift_1/all_patterns.npy")
-    complete_patterns = convert_string_patterns_to_float(complete_patterns)
+    complement_patterns = np.load("subbox_masked_patterns/subshift_1/all_patterns.npy")
+    complement_patterns = convert_string_patterns_to_float(complement_patterns)
 
     masked_patterns = np.load("outside_subbox_masked_patterns/subshift_1/all_patterns.npy")
     masked_patterns = convert_string_patterns_to_float(masked_patterns)
 
     # Train and save the model
     model,test_set = run_training(
-        complete_patterns,
+        complement_patterns,
         masked_patterns,
         model_path="models/gnn.pt",
         batch_size=10,

@@ -1,5 +1,6 @@
 import os 
 import shutil
+import numpy as np
 
 def empty_folder(folder_path):
     """
@@ -14,3 +15,9 @@ def empty_folder(folder_path):
                 shutil.rmtree(file_path)     # Delete subdirectory
         except Exception as e:
             print(f"Failed to delete {file_path}: {e}")
+
+def directional_round(x, decimals=0):
+    factor = 10 ** decimals
+    x_scaled = x * factor
+    result = np.where(x_scaled >= 0, np.ceil(x_scaled), np.floor(x_scaled))
+    return result / factor

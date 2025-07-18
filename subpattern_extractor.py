@@ -189,7 +189,7 @@ def mask_subbox_in_numpy_stack(input_path, output_path, box_size):
     Saves the modified 3D array to `output_path`.
 
     Parameters:
-        input_path (str): Path to the input `.npy` file (shape: num_patterns × rows × cols)
+        input_path (str): Path to the input `.npy` file (shape: num_patterns x rows x cols)
         output_path (str): Path to save the masked `.npy` file
         box_size (int): Size of the square subbox to mask
         mask_symbol (str): Value to place inside the subbox (default is -1)

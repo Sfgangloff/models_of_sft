@@ -4,3 +4,5 @@ crown_masked_patterns/
 outside_subbox_masked_patterns/
 samples.json
 models/
+__pycache__/
+*.py[cod]
