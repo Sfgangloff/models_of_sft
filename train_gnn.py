@@ -7,12 +7,11 @@ the full pattern from the masked version.
 
 The model is trained using PyTorch Geometric, and saved to disk upon completion.
 """
-# TODO: output an actual pattern instead of numerical values; 
-# evaluate the accuracy of the model by checking that the pattern actually extends the initial pattern and run SAT solver to check that the 
-# pattern satisfies the rules.
+# TODO: eval seems to be zero -> check if anything is wrong.
 
-# TODO: enrich the dataset by creating pattern that break the rules, patterns which do not extend, etc. 
+# TODO: enrich the dataset by creating pattern that break the rules, patterns which do not extend, etc ? 
 
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -23,6 +22,7 @@ import numpy as np
 import networkx as nx
 from sklearn.model_selection import train_test_split
 from utils import directional_round
+from eval import eval_subbox_to_outside
 
 def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-10):
     """
@@ -166,34 +166,34 @@ def run_training(complement_patterns, masked_patterns, model_path, batch_size=10
 
     return model, test_set
 
-def evaluate(model, test_set):
-    """
-    Evaluates the GNN model on a test set using mean squared error.
+# def evaluate(model, test_set):
+#     """
+#     Evaluates the GNN model on a test set using mean squared error.
 
-    Parameters:
-        model (nn.Module): The trained GNN model.
-        test_set (List[Data]): List of test graphs.
+#     Parameters:
+#         model (nn.Module): The trained GNN model.
+#         test_set (List[Data]): List of test graphs.
 
-    Returns:
-        float: Average MSE loss over the test set.
-    """
+#     Returns:
+#         float: Average MSE loss over the test set.
+#     """
 
-    model.eval()
-    loader = GeoDataLoader(test_set, batch_size=10)
-    loss_fn = nn.MSELoss()
-    total_loss = 0.0
-    count = 0
+#     model.eval()
+#     loader = GeoDataLoader(test_set, batch_size=10)
+#     loss_fn = nn.MSELoss()
+#     total_loss = 0.0
+#     count = 0
 
-    with torch.no_grad():
-        for batch in loader:
-            pred = model(batch)
-            loss = loss_fn(pred, batch.y)
-            total_loss += loss.item() * batch.num_graphs
-            count += batch.num_graphs
+#     with torch.no_grad():
+#         for batch in loader:
+#             pred = model(batch)
+#             loss = loss_fn(pred, batch.y)
+#             total_loss += loss.item() * batch.num_graphs
+#             count += batch.num_graphs
 
-    avg_loss = total_loss / count
-    print(f"Test MSE: {avg_loss:.4f}")
-    return avg_loss
+#     avg_loss = total_loss / count
+#     print(f"Test MSE: {avg_loss:.4f}")
+#     return avg_loss
 
 def inspect_prediction(model, data_point, H, W):
     """
@@ -216,7 +216,7 @@ def inspect_prediction(model, data_point, H, W):
     input_masked = data_point.x.squeeze().cpu().numpy().reshape(H, W)
 
     # Display
-    print("\n Masked input (x):")
+    print("\n Input (x):")
     print(input_masked)
 
     print("\n Ground truth (y):")
@@ -227,6 +227,7 @@ def inspect_prediction(model, data_point, H, W):
 
 if __name__ == "__main__":
     # TODO: decide which option to take: predict complete pattern or the complement pattern.
+    
     # Load and preprocess pattern data
     complement_patterns = np.load("subbox_masked_patterns/subshift_1/all_patterns.npy")
     complement_patterns = convert_string_patterns_to_float(complement_patterns)
@@ -242,7 +243,6 @@ if __name__ == "__main__":
         batch_size=10,
         epochs=20
     )
-    # test_loss = evaluate(model, test_set)
 
     # Pick one pattern (e.g. the first)
     sample = test_set[0]
@@ -252,3 +252,25 @@ if __name__ == "__main__":
 
     # Run inspection
     inspect_prediction(model, sample, H, W)
+
+    loader = GeoDataLoader(test_set, batch_size=10)
+    all_preds = []
+
+    with torch.no_grad():
+        for batch in loader:
+            preds = model(batch)
+            preds = preds.squeeze().cpu().numpy()
+            B = batch.num_graphs
+            preds = preds.reshape(B, 19, 19)
+            preds = directional_round(preds, decimals=0).astype(int)
+            all_preds.append(preds)
+
+    predicted_stack = np.concatenate(all_preds, axis=0)
+    input_stack = np.stack([
+    data.x.squeeze().cpu().numpy().reshape(19, 19)
+    for data in test_set
+        ])
+    with open("samples.json", "r") as f:
+        samples = json.load(f)
+    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=7,forbidden_patterns=samples["subshift_1"]["forbidden_pairs"])
+    print(eval)
