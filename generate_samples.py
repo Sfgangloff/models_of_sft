@@ -141,12 +141,12 @@ def generate_sample(alphabet:list[str],
 
 if __name__ == "__main__":
     # Example configuration: binary alphabet, 30% forbid probability
-    ALPHABET = ['0', '1','2']
+    ALPHABET = ['0','1','2']
     FORBID_PROB = 0.3
-    N = 19  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
-    MAX_PATTERNS = 4  # Max number of patterns to generate for each SFT
+    N = 3  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
+    MAX_PATTERNS = 10000  # Max number of patterns to generate for each SFT
     NUM_SAMPLES = 4   # Number of SFTs to generate
-    SUBBOX_SIZE = 7 # Size of subbox used to extract subpatterns
+    SUBBOX_SIZE = 1 # Size of subbox used to extract subpatterns
 
     generate_sample(alphabet=ALPHABET, 
                     forbid_prob=FORBID_PROB, 

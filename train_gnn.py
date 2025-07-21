@@ -7,9 +7,14 @@ the full pattern from the masked version.
 
 The model is trained using PyTorch Geometric, and saved to disk upon completion.
 """
-# TODO: eval seems to be zero -> check if anything is wrong.
+# TODO: eval is exactly zero: after inspection, it seems that the model tends to complete uniformly (tested on box 19 x 19 with subbox of 7 x 7). Why is that so ? Is it due to positive entropy ? 
+
+# TODO: later, one possibility is to evaluate the model not on finding a correct answer but on minimizing the number of forbidden patterns in the output. 
 
 # TODO: enrich the dataset by creating pattern that break the rules, patterns which do not extend, etc ? 
+
+# In all tests so far (19x19 and 7x7, 5x5 and 3x3), the loss stabilises around 0.2 or 0.3. For small problems, like box 3x3 and subbox 1x1, non-zero precision (approx 1/3 of success). 
+# Can this be used to ameliorate training (apply prediction one by one).
 
 import json
 import torch
@@ -24,7 +29,7 @@ from sklearn.model_selection import train_test_split
 from utils import directional_round
 from eval import eval_subbox_to_outside
 
-def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-10):
+def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-1):
     """
     Converts a NumPy array of strings ('0', '1', '*') to float values.
 
@@ -227,12 +232,16 @@ def inspect_prediction(model, data_point, H, W):
 
 if __name__ == "__main__":
     # TODO: decide which option to take: predict complete pattern or the complement pattern.
+
+    NAME = "subshift_2"
+    H, W = 3,3
+    BOX_SIZE = 1
     
     # Load and preprocess pattern data
-    complement_patterns = np.load("subbox_masked_patterns/subshift_1/all_patterns.npy")
+    complement_patterns = np.load(f"subbox_masked_patterns/{NAME}/all_patterns.npy")
     complement_patterns = convert_string_patterns_to_float(complement_patterns)
 
-    masked_patterns = np.load("outside_subbox_masked_patterns/subshift_1/all_patterns.npy")
+    masked_patterns = np.load(f"outside_subbox_masked_patterns/{NAME}/all_patterns.npy")
     masked_patterns = convert_string_patterns_to_float(masked_patterns)
 
     # Train and save the model
@@ -247,9 +256,6 @@ if __name__ == "__main__":
     # Pick one pattern (e.g. the first)
     sample = test_set[0]
 
-    # Recover the original dimensions
-    H, W = 19, 19  # set these to your actual pattern size
-
     # Run inspection
     inspect_prediction(model, sample, H, W)
 
@@ -261,16 +267,16 @@ if __name__ == "__main__":
             preds = model(batch)
             preds = preds.squeeze().cpu().numpy()
             B = batch.num_graphs
-            preds = preds.reshape(B, 19, 19)
+            preds = preds.reshape(B, H, W)
             preds = directional_round(preds, decimals=0).astype(int)
             all_preds.append(preds)
 
     predicted_stack = np.concatenate(all_preds, axis=0)
     input_stack = np.stack([
-    data.x.squeeze().cpu().numpy().reshape(19, 19)
+    data.x.squeeze().cpu().numpy().reshape(H, W)
     for data in test_set
         ])
     with open("samples.json", "r") as f:
         samples = json.load(f)
-    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=7,forbidden_patterns=samples["subshift_1"]["forbidden_pairs"])
+    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=BOX_SIZE,forbidden_patterns=samples[NAME]["forbidden_pairs"])
     print(eval)
