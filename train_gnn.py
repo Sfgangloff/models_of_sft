@@ -105,6 +105,10 @@ class GNNModel(nn.Module):
         self.conv1 = GCNConv(1, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, hidden_dim)
         self.head = nn.Linear(hidden_dim, 1)
+        # TODO: output dimension should be the number of labels
+        # TODO: use crossentropy for the loss.
+        # TODO: use -100 on ground truth to ignore the correspondinglabels.
+        # TODO: ultimately, use random values instead of * or -1. 
 
     def forward(self, data):
         """
@@ -117,8 +121,13 @@ class GNNModel(nn.Module):
             torch.Tensor: Output tensor of shape (num_nodes, 1) with predicted values.
         """
         x, edge_index = data.x, data.edge_index
+        
         x = torch.relu(self.conv1(x, edge_index))
         x = torch.relu(self.conv2(x, edge_index))
+        # TODO: 1 convo layer and for loop -> better: higher number of layers. 
+        # Better generalization
+        # Other idea: 1 conv layer to encode input + for loops with same layer (same parameters for each copy of the layer) + conv layer for decoding.
+        # For first layer: embedding layer (int -> vector, one hot encoding + LinearLayer, or EmbeddingLayer).
         return self.head(x)
 
 def train(model, loader, epochs=20):
@@ -132,6 +141,7 @@ def train(model, loader, epochs=20):
     """
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
+    # TODO: here change to crossentropy loss
 
     model.train()
     for epoch in range(epochs):
