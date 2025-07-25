@@ -118,7 +118,7 @@ class GNNModel(nn.Module):
     The input node features are assumed to be discrete integers representing node types.
     """
 
-    def __init__(self,size_alphabet,embed_dim=64, num_hidden=64,num_iterations=5):
+    def __init__(self,size_alphabet,embed_dim, num_hidden,num_iterations):
         """
         Initializes the GNNModel.
 
@@ -137,32 +137,30 @@ class GNNModel(nn.Module):
         self.num_iterations = num_iterations
         self.num_node_types = size_alphabet+1
 
-    def forward(self, data):
-        """
-        Forward pass of the GNNModel.
+    # def forward(self, data):
+    #     """
+    #     Forward pass of the GNNModel.
 
-        Parameters:
-            data (torch_geometric.data.Data): Graph data object containing:
-                - x: LongTensor of shape (num_nodes, 1) with integer-encoded node types.
-                - edge_index: LongTensor of shape (2, num_edges) representing the graph connectivity.
+    #     Parameters:
+    #         data (torch_geometric.data.Data): Graph data object containing:
+    #             - x: LongTensor of shape (num_nodes, 1) with integer-encoded node types.
+    #             - edge_index: LongTensor of shape (2, num_edges) representing the graph connectivity.
 
-        Returns:
-            torch.Tensor: Tensor of shape (num_nodes, num_classes), where each row contains
-                          the class logits for a node.
-        """
-        x, edge_index = data.x, data.edge_index
+    #     Returns:
+    #         torch.Tensor: Tensor of shape (num_nodes, num_classes), where each row contains
+    #                       the class logits for a node.
+    #     """
+    #     x, edge_index = data.x, data.edge_index
 
-        x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
-        x = self.input_proj(x)  # Shape: (num_nodes, embed_dim)
+    #     x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
+    #     x = self.input_proj(x)  # Shape: (num_nodes, embed_dim)
 
-        for _ in range(self.num_iterations):
-            x = F.relu(self.shared_conv(x, edge_index))
+    #     for _ in range(self.num_iterations):
+    #         x = F.relu(self.shared_conv(x, edge_index))
 
-        x = self.decoder(x, edge_index)  # Shape: (num_nodes, num_classes)
+    #     x = self.decoder(x, edge_index)  # Shape: (num_nodes, num_classes)
 
-        return x
-        # TODO: use -100 on ground truth to ignore the correspondinglabels.
-        # TODO: ultimately, use random values instead of * or -1. 
+    #     return x
 
     def forward(self, data):
         """
@@ -174,6 +172,8 @@ class GNNModel(nn.Module):
         Returns:
             torch.Tensor: Output tensor of shape (num_nodes, 1) with predicted values.
         """
+        # TODO: use -100 on ground truth to ignore the correspondinglabels.
+        # TODO: ultimately, use random values instead of * or -1. 
         x, edge_index = data.x, data.edge_index
         
         x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
@@ -187,7 +187,7 @@ class GNNModel(nn.Module):
         x = self.decoder(x, edge_index)  # logits
         return x
 
-def train(model, loader, epochs=20):
+def train(model, loader, epochs):
     """
     Trains the GNN model on a dataset of masked patterns.
 
@@ -212,7 +212,8 @@ def train(model, loader, epochs=20):
             total_loss += loss.item()
         print(f"Epoch {epoch+1:02d}: Loss = {total_loss / len(loader):.4f}")
 
-def run_training(complement_patterns, masked_patterns, model_path, size_alphabet, batch_size=10, epochs=20,test_ratio=0.1):
+def run_training(complement_patterns, masked_patterns, model_path, size_alphabet, epochs, batch_size,test_ratio, embed_dim,num_hidden,
+                     num_iterations):
     """
     Main training pipeline: prepares dataset, trains the model, and saves it to disk.
 
@@ -230,7 +231,10 @@ def run_training(complement_patterns, masked_patterns, model_path, size_alphabet
     train_set, test_set = train_test_split(dataset, test_size=test_ratio, random_state=42)
     train_loader = GeoDataLoader(train_set, batch_size=batch_size)
 
-    model = GNNModel(size_alphabet=size_alphabet)
+    model = GNNModel(size_alphabet=size_alphabet,
+                     embed_dim=embed_dim,
+                     num_hidden=num_hidden,
+                     num_iterations=num_iterations)
     train(model, train_loader, epochs=epochs)
 
     torch.save(model.state_dict(), model_path)
@@ -290,7 +294,13 @@ if __name__ == "__main__":
     BOX_SIZE = config["box_size"]
     SUBBOX_SIZE  = config["subbox_size"]
     ALPHABET_SIZE = get_alphabet_size(NAME)
-    LOAD_MODEL = True
+    EPOCHS = config["epochs"]
+    BATCH_SIZE = config["batch_size"]
+    TEST_RATIO = config["test_ratio"]
+    HIDDEN_DIMENSIONS = config["hidden_dimensions"]
+    EMBEDDING_DIMENSIONS = config["embedding_dimensions"]
+    NUMBER_ITERATIONS = config["number_iterations"]
+    LOAD_MODEL = False
     
     # Load and preprocess pattern data
     complement_patterns = np.load(f"subbox_masked_patterns/{NAME}/all_patterns.npy")
@@ -306,8 +316,12 @@ if __name__ == "__main__":
             masked_patterns,
             model_path="models/gnn.pt",
             size_alphabet=ALPHABET_SIZE,
-            batch_size=10,
-            epochs=20
+            batch_size=BATCH_SIZE,
+            epochs=EPOCHS,
+            test_ratio = TEST_RATIO,
+            num_hidden=HIDDEN_DIMENSIONS,
+            num_iterations=NUMBER_ITERATIONS,
+            embed_dim=EMBEDDING_DIMENSIONS
         )
     else: 
         with open("models/gnn_testset.pkl", "rb") as f:
@@ -343,5 +357,8 @@ if __name__ == "__main__":
         ])
     with open("samples.json", "r") as f:
         samples = json.load(f)
-    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=SUBBOX_SIZE,forbidden_patterns=samples[NAME]["forbidden_pairs"])
+    eval = eval_subbox_to_outside(input_stack,
+                                  predicted_stack,
+                                  box_size=SUBBOX_SIZE,
+                                  forbidden_patterns=samples[NAME]["forbidden_pairs"])
     print(eval)
