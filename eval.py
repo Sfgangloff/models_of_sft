@@ -137,7 +137,7 @@ def eval_subbox_to_outside(subbox_stack, outside_subbox_stack, box_size, forbidd
     # Step 4: OR between the two checks → violation if either is true
     success = (checks_negative & checks_forbidden_patterns)  # shape (N,)
 
-    return success.sum(), success.size
+    return int(success.sum()), int(success.size)
 
 if __name__ == "__main__":
     arr = np.array([

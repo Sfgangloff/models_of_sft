@@ -18,6 +18,7 @@ The model is trained using PyTorch Geometric, and saved to disk upon completion.
 
 import json
 import torch
+import pickle
 import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.data import Data
@@ -27,7 +28,28 @@ import numpy as np
 import networkx as nx
 from sklearn.model_selection import train_test_split
 from utils import directional_round
-from eval import eval_subbox_to_outside
+from eval import eval_subbox_to_outside, merge_patterns_stack
+import torch.nn.functional as F
+
+def get_alphabet_size(subshift_key):
+    """
+    Returns the size of the alphabet for a given subshift in a JSON file.
+
+    Parameters:
+        filename (str): Path to the JSON file.
+        subshift_key (str): Key of the subshift (e.g., "subshift_2").
+
+    Returns:
+        int: Size of the alphabet for the specified subshift.
+    """
+    with open("samples.json", 'r') as f:
+        data = json.load(f)
+
+    if subshift_key not in data:
+        raise KeyError(f"Subshift key '{subshift_key}' not found in file.")
+
+    alphabet = data[subshift_key]["alphabet"]
+    return len(alphabet)
 
 def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-1):
     """
@@ -85,28 +107,60 @@ def make_dataset(complement, masked):
 
 class GNNModel(nn.Module):
     """
-    Simple 2-layer Graph Convolutional Network for node-wise regression.
+    Graph Neural Network for node-level classification based on repeated message passing.
 
-    Architecture:
-        - GCNConv(1, hidden_dim)
-        - ReLU
-        - GCNConv(hidden_dim, hidden_dim)
-        - ReLU
-        - Linear(hidden_dim → 1)
+    Architecture Overview:
+        - Input projection: one-hot encoding of node types followed by a linear projection to an embedding space.
+        - Message passing: repeated application of a single shared GCNConv layer with ReLU activations.
+        - Output decoding: a final GCNConv layer produces per-node class logits.
+
+    This model is suitable for node classification tasks where each node is labeled with a class from a finite alphabet.
+    The input node features are assumed to be discrete integers representing node types.
     """
-    def __init__(self, hidden_dim=64):
+
+    def __init__(self,size_alphabet,embed_dim=64, num_hidden=64,num_iterations=5):
         """
-        Initializes the GNN model.
+        Initializes the GNNModel.
 
         Parameters:
-            hidden_dim (int): Number of hidden units in the GCN layers.
+            embed_dim (int): Dimension of the embedding space after input projection.
+            num_hidden (int): Number of hidden units in the internal GCN layer.
+            size_alphabet (int): Size of the alphabet of the subshift.
+            num_iterations (int): Number of times the shared GCN layer is applied for message passing.
         """
         super().__init__()
-        self.conv1 = GCNConv(1, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, hidden_dim)
-        self.head = nn.Linear(hidden_dim, 1)
-        # TODO: output dimension should be the number of labels
-        # TODO: use crossentropy for the loss.
+
+        self.input_proj = nn.Linear(size_alphabet+1, embed_dim, bias=False)
+        self.shared_conv = GCNConv(embed_dim, num_hidden)
+        self.decoder = GCNConv(num_hidden, size_alphabet+1)
+
+        self.num_iterations = num_iterations
+        self.num_node_types = size_alphabet+1
+
+    def forward(self, data):
+        """
+        Forward pass of the GNNModel.
+
+        Parameters:
+            data (torch_geometric.data.Data): Graph data object containing:
+                - x: LongTensor of shape (num_nodes, 1) with integer-encoded node types.
+                - edge_index: LongTensor of shape (2, num_edges) representing the graph connectivity.
+
+        Returns:
+            torch.Tensor: Tensor of shape (num_nodes, num_classes), where each row contains
+                          the class logits for a node.
+        """
+        x, edge_index = data.x, data.edge_index
+
+        x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
+        x = self.input_proj(x)  # Shape: (num_nodes, embed_dim)
+
+        for _ in range(self.num_iterations):
+            x = F.relu(self.shared_conv(x, edge_index))
+
+        x = self.decoder(x, edge_index)  # Shape: (num_nodes, num_classes)
+
+        return x
         # TODO: use -100 on ground truth to ignore the correspondinglabels.
         # TODO: ultimately, use random values instead of * or -1. 
 
@@ -122,13 +176,16 @@ class GNNModel(nn.Module):
         """
         x, edge_index = data.x, data.edge_index
         
-        x = torch.relu(self.conv1(x, edge_index))
-        x = torch.relu(self.conv2(x, edge_index))
-        # TODO: 1 convo layer and for loop -> better: higher number of layers. 
-        # Better generalization
-        # Other idea: 1 conv layer to encode input + for loops with same layer (same parameters for each copy of the layer) + conv layer for decoding.
-        # For first layer: embedding layer (int -> vector, one hot encoding + LinearLayer, or EmbeddingLayer).
-        return self.head(x)
+        x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
+        x = self.input_proj(x)  # Now shape (num_nodes, embed_dim)
+
+        # Repeated application of same convolutional layer
+        for _ in range(self.num_iterations):
+            x = F.relu(self.shared_conv(x, edge_index))
+
+        # Final decoder layer
+        x = self.decoder(x, edge_index)  # logits
+        return x
 
 def train(model, loader, epochs=20):
     """
@@ -140,8 +197,8 @@ def train(model, loader, epochs=20):
         epochs (int): Number of epochs to train for.
     """
     optimizer = optim.Adam(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
-    # TODO: here change to crossentropy loss
+    # Cross entropy loss, for classification task.
+    loss_fn = nn.CrossEntropyLoss()
 
     model.train()
     for epoch in range(epochs):
@@ -149,13 +206,13 @@ def train(model, loader, epochs=20):
         for batch in loader:
             optimizer.zero_grad()
             pred = model(batch)
-            loss = loss_fn(pred, batch.y)
+            loss = loss_fn(pred, batch.y.squeeze(1).long())
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
         print(f"Epoch {epoch+1:02d}: Loss = {total_loss / len(loader):.4f}")
 
-def run_training(complement_patterns, masked_patterns, model_path, batch_size=10, epochs=20,test_ratio=0.1):
+def run_training(complement_patterns, masked_patterns, model_path, size_alphabet, batch_size=10, epochs=20,test_ratio=0.1):
     """
     Main training pipeline: prepares dataset, trains the model, and saves it to disk.
 
@@ -173,44 +230,20 @@ def run_training(complement_patterns, masked_patterns, model_path, batch_size=10
     train_set, test_set = train_test_split(dataset, test_size=test_ratio, random_state=42)
     train_loader = GeoDataLoader(train_set, batch_size=batch_size)
 
-    model = GNNModel()
+    model = GNNModel(size_alphabet=size_alphabet)
     train(model, train_loader, epochs=epochs)
 
     torch.save(model.state_dict(), model_path)
     print(f"Model saved to {model_path}")
 
+    test_path = model_path.replace(".pt", "_testset.pkl")
+    with open(test_path, "wb") as f:
+        pickle.dump(test_set, f)
+    print(f"Test set saved to {test_path}")
+
     return model, test_set
 
-# def evaluate(model, test_set):
-#     """
-#     Evaluates the GNN model on a test set using mean squared error.
-
-#     Parameters:
-#         model (nn.Module): The trained GNN model.
-#         test_set (List[Data]): List of test graphs.
-
-#     Returns:
-#         float: Average MSE loss over the test set.
-#     """
-
-#     model.eval()
-#     loader = GeoDataLoader(test_set, batch_size=10)
-#     loss_fn = nn.MSELoss()
-#     total_loss = 0.0
-#     count = 0
-
-#     with torch.no_grad():
-#         for batch in loader:
-#             pred = model(batch)
-#             loss = loss_fn(pred, batch.y)
-#             total_loss += loss.item() * batch.num_graphs
-#             count += batch.num_graphs
-
-#     avg_loss = total_loss / count
-#     print(f"Test MSE: {avg_loss:.4f}")
-#     return avg_loss
-
-def inspect_prediction(model, data_point, H, W):
+def inspect_prediction(model, data_point, H, W,subbox_size):
     """
     Runs the model on a single test pattern and displays the prediction.
 
@@ -219,6 +252,7 @@ def inspect_prediction(model, data_point, H, W):
         data_point (torch_geometric.data.Data): One pattern graph.
         H (int): Height of the original 2D pattern.
         W (int): Width of the original 2D pattern.
+        subbox_size: Size of the subbox used to mask.
     """
     model.eval()
     print(data_point)
@@ -226,7 +260,7 @@ def inspect_prediction(model, data_point, H, W):
         pred = model(data_point)
 
     # Flattened versions
-    predicted = pred.squeeze().cpu().numpy().reshape(H, W)
+    predicted = pred.argmax(dim=1).squeeze().cpu().numpy().reshape(H, W)
     ground_truth = data_point.y.squeeze().cpu().numpy().reshape(H, W)
     input_masked = data_point.x.squeeze().cpu().numpy().reshape(H, W)
 
@@ -238,36 +272,56 @@ def inspect_prediction(model, data_point, H, W):
     print(ground_truth)
 
     print("\n Model prediction:")
-    print(directional_round(predicted,decimals=0))
+    print(predicted)
+
+    print("\n After merging:")
+    print(merge_patterns_stack(np.expand_dims(input_masked, axis=0),np.expand_dims(predicted, axis=0),subbox_size))
 
 if __name__ == "__main__":
     # TODO: decide which option to take: predict complete pattern or the complement pattern.
+    import yaml 
 
-    NAME = "subshift_2"
-    H, W = 3,3
-    BOX_SIZE = 1
+    # Load config
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # Parameters from config
+    NAME = "subshift_2" 
+    BOX_SIZE = config["box_size"]
+    SUBBOX_SIZE  = config["subbox_size"]
+    ALPHABET_SIZE = get_alphabet_size(NAME)
+    LOAD_MODEL = True
     
     # Load and preprocess pattern data
     complement_patterns = np.load(f"subbox_masked_patterns/{NAME}/all_patterns.npy")
-    complement_patterns = convert_string_patterns_to_float(complement_patterns)
+    complement_patterns = convert_string_patterns_to_float(complement_patterns,mask_value=ALPHABET_SIZE)
 
     masked_patterns = np.load(f"outside_subbox_masked_patterns/{NAME}/all_patterns.npy")
-    masked_patterns = convert_string_patterns_to_float(masked_patterns)
+    masked_patterns = convert_string_patterns_to_float(masked_patterns,mask_value=ALPHABET_SIZE)
 
-    # Train and save the model
-    model,test_set = run_training(
-        complement_patterns,
-        masked_patterns,
-        model_path="models/gnn.pt",
-        batch_size=10,
-        epochs=20
-    )
+    if LOAD_MODEL is False:
+        # Train and save the model
+        model,test_set = run_training(
+            complement_patterns,
+            masked_patterns,
+            model_path="models/gnn.pt",
+            size_alphabet=ALPHABET_SIZE,
+            batch_size=10,
+            epochs=20
+        )
+    else: 
+        with open("models/gnn_testset.pkl", "rb") as f:
+            test_set = pickle.load(f)
+        model = GNNModel(size_alphabet=ALPHABET_SIZE)  # Use the same size_alphabet as before
+        # Load saved weights
+        model.load_state_dict(torch.load("models/gnn.pt"))
 
-    # Pick one pattern (e.g. the first)
-    sample = test_set[0]
-
-    # Run inspection
-    inspect_prediction(model, sample, H, W)
+    inspection_list = range(5)
+    # inspection_list = [1]
+    for k in inspection_list:
+        sample = test_set[k]
+        # Run inspection
+        inspect_prediction(model, sample, BOX_SIZE, BOX_SIZE,SUBBOX_SIZE)
 
     loader = GeoDataLoader(test_set, batch_size=10)
     all_preds = []
@@ -275,18 +329,19 @@ if __name__ == "__main__":
     with torch.no_grad():
         for batch in loader:
             preds = model(batch)
-            preds = preds.squeeze().cpu().numpy()
-            B = batch.num_graphs
-            preds = preds.reshape(B, H, W)
-            preds = directional_round(preds, decimals=0).astype(int)
+            preds = preds.squeeze().cpu().numpy().astype(int)
+            batch = batch.num_graphs
+            preds = preds.argmax(axis=1).reshape(batch, BOX_SIZE, BOX_SIZE)
+            # preds = directional_round(preds, decimals=0).astype(int)
+            preds[preds == 3] = -1
             all_preds.append(preds)
 
     predicted_stack = np.concatenate(all_preds, axis=0)
     input_stack = np.stack([
-    data.x.squeeze().cpu().numpy().reshape(H, W)
+    data.x.squeeze().cpu().numpy().reshape(BOX_SIZE, BOX_SIZE)
     for data in test_set
         ])
     with open("samples.json", "r") as f:
         samples = json.load(f)
-    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=BOX_SIZE,forbidden_patterns=samples[NAME]["forbidden_pairs"])
+    eval = eval_subbox_to_outside(input_stack,predicted_stack,box_size=SUBBOX_SIZE,forbidden_patterns=samples[NAME]["forbidden_pairs"])
     print(eval)

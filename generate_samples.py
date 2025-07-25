@@ -140,17 +140,23 @@ def generate_sample(alphabet:list[str],
         json.dump(forbidden_dict, f, indent=2)
 
 if __name__ == "__main__":
-    # Example configuration: binary alphabet, 30% forbid probability
-    ALPHABET = ['0','1','2']
-    FORBID_PROB = 0.3
-    N = 3  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
-    MAX_PATTERNS = 10000  # Max number of patterns to generate for each SFT
-    NUM_SAMPLES = 4   # Number of SFTs to generate
-    SUBBOX_SIZE = 1 # Size of subbox used to extract subpatterns
+    import yaml
+
+    # Load config
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # Access parameters
+    ALPHABET     = config["alphabet"]
+    FORBID_PROB  = config["forbidden_propability"]
+    BOX_SIZE     = config["box_size"]
+    MAX_PATTERNS = config["max_patterns"]
+    NUM_SAMPLES  = config["num_samples"]
+    SUBBOX_SIZE  = config["subbox_size"]
 
     generate_sample(alphabet=ALPHABET, 
                     forbid_prob=FORBID_PROB, 
-                    n=N, 
+                    n=BOX_SIZE, 
                     max_patterns=MAX_PATTERNS, 
                     num_samples=NUM_SAMPLES,
                     subbox_size=SUBBOX_SIZE,

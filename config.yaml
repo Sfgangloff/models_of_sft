@@ -1,0 +1,6 @@
+box_size: 7  # Size of square box for pattern generation: B_n = {0,...,n-1}^2
+subbox_size: 5 # Size of subbox used to extract subpatterns
+alphabet: ['0','1','2'] # Alphabet of generated subshifts
+forbidden_propability: 0.3 # Probability for acceptance of pattern in the set of forbidden patterns.
+max_patterns: 10000 # Max number of patterns to generate for each SFT
+num_samples: 4 # Number of SFTs to generate
