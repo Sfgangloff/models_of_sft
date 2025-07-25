@@ -12,10 +12,14 @@ def merge_patterns_stack(subbox_stack, outside_subbox_stack, box_size):
     Returns:
         np.ndarray: merged stack of shape (N, H, W)
     """
-    assert subbox_stack.shape == outside_subbox_stack.shape, "Stacks must have the same shape"
+    assert subbox_stack.ndim == 3, f"Expected 3D stack, got shape {subbox_stack.shape}"
+    assert subbox_stack.shape == outside_subbox_stack.shape, \
+    f"Shape mismatch: subbox {subbox_stack.shape}, outside {outside_subbox_stack.shape}"
+
     N, H, W = subbox_stack.shape
     s = box_size
-    assert s <= H and s <= W, "Subbox must fit inside the array"
+    assert s <= H and s <= W, \
+    f"Subbox of size {s} does not fit in array of shape ({H},{W})"
 
     i0 = (H - s) // 2
     i1 = i0 + s
@@ -39,7 +43,9 @@ def subbox_all_negative_flags(stack, box_size):
     """
     N, H, W = stack.shape
     s = box_size
-    assert s <= H and s <= W, "Subbox must fit inside the array"
+    assert stack.ndim == 3, f"Expected 3D stack, got shape {stack.shape}"
+    assert s <= H and s <= W, \
+    f"Subbox of size {s} does not fit in array of shape ({H},{W})"
 
     i0 = (H - s) // 2
     i1 = i0 + s
@@ -67,6 +73,8 @@ def unzip_forbidden_patterns(forbidden_patterns):
 
 def check_forbidden_horizontal(arr,forbidden_horizontal,valid):
     N, H, W = arr.shape
+    assert W > 1, "Array width too small for horizontal pair checking"
+    assert H > 1, "Array height too small for vertical pair checking"
     left = arr[:, :, :-1]    # (N, H, W-1)
     right = arr[:, :, 1:]    # (N, H, W-1)
     horz_pairs = np.stack([left, right], axis=-1)  # (N, H, W-1, 2)
@@ -82,6 +90,8 @@ def check_forbidden_horizontal(arr,forbidden_horizontal,valid):
 
 def check_forbidden_vertical(arr,forbidden_vertical,valid):
     N, H, W = arr.shape
+    assert W > 1, "Array width too small for horizontal pair checking"
+    assert H > 1, "Array height too small for vertical pair checking"
     top = arr[:, :-1, :]     # (N, H-1, W)
     bottom = arr[:, 1:, :]   # (N, H-1, W)
     vert_pairs = np.stack([top, bottom], axis=-1)  # (N, H-1, W, 2)

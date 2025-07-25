@@ -39,6 +39,9 @@ def var_id(i:int, j:int, a_idx:int, alphabet:list[str], n:int):
     Returns:
         int: Unique positive integer representing the variable
     """
+    assert 0 <= i < n, f"Row index i={i} out of bounds for grid size {n}"
+    assert 0 <= j < n, f"Column index j={j} out of bounds for grid size {n}"
+    assert 0 <= a_idx < len(alphabet), f"a_idx={a_idx} out of range for alphabet of size {len(alphabet)}"
     return i * n * len(alphabet) + j * len(alphabet) + a_idx + 1
 
 # -----------------------------------------------------------------------------
@@ -60,6 +63,8 @@ def decode_model(model:list[int], alphabet:list[str], n:int):
     """
     pattern = {}
     for i, j in product(range(n), repeat=2):
+        if (i, j) not in pattern:
+            raise ValueError(f"No symbol assigned at position ({i}, {j}). Possibly invalid model.")
         for k in range(len(alphabet)):
             if var_id(i, j, k, alphabet, n) in model:
                 pattern[(i, j)] = alphabet[k]
@@ -88,6 +93,8 @@ def forbidden_clauses(n,alphabet,forbidden_pairs):
                         -var_id(i, j, idx1, alphabet, n),
                         -var_id(i + 1, j, idx2, alphabet, n)
                     ])
+        else:
+            raise ValueError(f"Invalid direction: {direction}. Must be 'horizontal' or 'vertical'.")
     return clauses
 
 def encode_sft(n:int, alphabet:list[str], forbidden_pairs):
