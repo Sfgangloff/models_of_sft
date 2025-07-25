@@ -11,7 +11,7 @@ samples_path : "samples.json"
 
 # GNN TRAINING 
 
-epochs : 20
+epochs : 30
 batch_size : 10
 test_ratio : 0.1
 embedding_dimensions : 64

@@ -19,6 +19,7 @@ Dependencies:
 import os
 import re
 import json
+import yaml
 from random_sft_generator import generate_random_sft
 from pattern_generator import generate_patterns
 from subpattern_extractor import keep_box_in_patterns, mask_crown_in_patterns, mask_subbox_in_patterns,keep_box_in_numpy_stack,mask_subbox_in_numpy_stack
@@ -141,7 +142,6 @@ def generate_sample(alphabet:list[str],
         json.dump(forbidden_dict, f, indent=2)
 
 if __name__ == "__main__":
-    import yaml
 
     # Load config
     with open("config.yaml", "r") as f:

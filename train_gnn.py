@@ -19,6 +19,7 @@ The model is trained using PyTorch Geometric, and saved to disk upon completion.
 import json
 import torch
 import pickle
+import yaml
 import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.data import Data
@@ -27,7 +28,7 @@ from torch_geometric.nn import GCNConv
 import numpy as np
 import networkx as nx
 from sklearn.model_selection import train_test_split
-from utils import directional_round
+# from utils import directional_round
 from eval import eval_subbox_to_outside, merge_patterns_stack
 import torch.nn.functional as F
 
@@ -51,7 +52,7 @@ def get_alphabet_size(subshift_key):
     alphabet = data[subshift_key]["alphabet"]
     return len(alphabet)
 
-def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-1):
+def convert_string_patterns_to_float(array, mask_symbol="*", mask_value=-100):
     """
     Converts a NumPy array of strings ('0', '1', '*') to float values.
 
@@ -173,7 +174,7 @@ class GNNModel(nn.Module):
             torch.Tensor: Output tensor of shape (num_nodes, 1) with predicted values.
         """
         # TODO: use -100 on ground truth to ignore the correspondinglabels.
-        # TODO: ultimately, use random values instead of * or -1. 
+        # TODO: ultimately, use random values instead of * or -1 ? 
         x, edge_index = data.x, data.edge_index
         
         x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
@@ -198,7 +199,7 @@ def train(model, loader, epochs):
     """
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     # Cross entropy loss, for classification task.
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
 
     model.train()
     for epoch in range(epochs):
@@ -283,7 +284,6 @@ def inspect_prediction(model, data_point, H, W,subbox_size):
 
 if __name__ == "__main__":
     # TODO: decide which option to take: predict complete pattern or the complement pattern.
-    import yaml 
 
     # Load config
     with open("config.yaml", "r") as f:
@@ -304,7 +304,7 @@ if __name__ == "__main__":
     
     # Load and preprocess pattern data
     complement_patterns = np.load(f"subbox_masked_patterns/{NAME}/all_patterns.npy")
-    complement_patterns = convert_string_patterns_to_float(complement_patterns,mask_value=ALPHABET_SIZE)
+    complement_patterns = convert_string_patterns_to_float(complement_patterns,mask_value=-100)
 
     masked_patterns = np.load(f"outside_subbox_masked_patterns/{NAME}/all_patterns.npy")
     masked_patterns = convert_string_patterns_to_float(masked_patterns,mask_value=ALPHABET_SIZE)
@@ -326,11 +326,14 @@ if __name__ == "__main__":
     else: 
         with open("models/gnn_testset.pkl", "rb") as f:
             test_set = pickle.load(f)
-        model = GNNModel(size_alphabet=ALPHABET_SIZE)  # Use the same size_alphabet as before
+        model = GNNModel(size_alphabet=ALPHABET_SIZE,num_hidden=HIDDEN_DIMENSIONS,
+            num_iterations=NUMBER_ITERATIONS,
+            embed_dim=EMBEDDING_DIMENSIONS)  # Use the same size_alphabet as before
         # Load saved weights
         model.load_state_dict(torch.load("models/gnn.pt"))
 
-    inspection_list = range(5)
+    inspection_list = []
+    # inspection_list = range(5)
     # inspection_list = [1]
     for k in inspection_list:
         sample = test_set[k]

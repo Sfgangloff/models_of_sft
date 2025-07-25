@@ -139,8 +139,8 @@ def eval_subbox_to_outside(subbox_stack, outside_subbox_stack, box_size, forbidd
     """
     assert subbox_stack.shape == outside_subbox_stack.shape, "Stacks must have the same shape"
 
-    # Step 1: check for negative-only subboxes in the outside pattern
-    checks_negative = subbox_all_negative_flags(outside_subbox_stack, box_size)  # shape (N,)
+    # # Step 1: check for negative-only subboxes in the outside pattern
+    # checks_negative = subbox_all_negative_flags(outside_subbox_stack, box_size)  # shape (N,)
 
     # Step 2: merge the subbox and the outside patterns
     merged_stack = merge_patterns_stack(subbox_stack, outside_subbox_stack, box_size)  # shape (N, H, W)
@@ -149,8 +149,11 @@ def eval_subbox_to_outside(subbox_stack, outside_subbox_stack, box_size, forbidd
     # Step 3: check forbidden patterns in the merged result
     checks_forbidden_patterns = check_forbidden_patterns(merged_stack, forbidden_patterns)  # shape (N,)
 
+    # # Step 4: OR between the two checks → violation if either is true
+    # success = (checks_negative & checks_forbidden_patterns)  # shape (N,)
+    
     # Step 4: OR between the two checks → violation if either is true
-    success = (checks_negative & checks_forbidden_patterns)  # shape (N,)
+    success = (checks_forbidden_patterns)  # shape (N,)
 
     return int(success.sum()), int(success.size)
 
