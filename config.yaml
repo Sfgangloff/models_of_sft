@@ -6,6 +6,8 @@ alphabet: ['0','1','2'] # Alphabet of generated subshifts
 forbidden_propability: 0.3 # Probability for acceptance of pattern in the set of forbidden patterns.
 max_patterns: 10000 # Max number of patterns to generate for each SFT
 num_samples: 4 # Number of SFTs to generate
+folder_path : "patterns"
+samples_path : "samples.json"
 
 # GNN TRAINING 
 

@@ -69,6 +69,27 @@ def decode_model(model:list[int], alphabet:list[str], n:int):
 # Encoding of SFT constraints
 # -----------------------------------------------------------------------------
 
+def forbidden_clauses(n,alphabet,forbidden_pairs):
+    clauses = []
+    for ((a1, a2), direction) in forbidden_pairs:
+        idx1 = alphabet.index(a1)
+        idx2 = alphabet.index(a2)
+        if direction == 'horizontal':
+            for i in range(n):
+                for j in range(n - 1):
+                    clauses.append([
+                        -var_id(i, j, idx1, alphabet, n),
+                        -var_id(i, j + 1, idx2, alphabet, n)
+                    ])
+        elif direction == 'vertical':
+            for i in range(n - 1):
+                for j in range(n):
+                    clauses.append([
+                        -var_id(i, j, idx1, alphabet, n),
+                        -var_id(i + 1, j, idx2, alphabet, n)
+                    ])
+    return clauses
+
 def encode_sft(n:int, alphabet:list[str], forbidden_pairs):
     """
     Encodes the SFT constraints (nearest-neighbor exclusions and one-letter-per-cell constraint)
@@ -91,24 +112,9 @@ def encode_sft(n:int, alphabet:list[str], forbidden_pairs):
         solver.append_formula(CardEnc.atleast(lits=vars_ij, bound=1, encoding=EncType.pairwise))
         solver.append_formula(CardEnc.atmost(lits=vars_ij, bound=1, encoding=EncType.pairwise))
 
-    # Add constraints for forbidden dominoes
-    for ((a1, a2), direction) in forbidden_pairs:
-        idx1 = alphabet.index(a1)
-        idx2 = alphabet.index(a2)
-        if direction == 'horizontal':
-            for i in range(n):
-                for j in range(n - 1):
-                    solver.add_clause([
-                        -var_id(i, j,     idx1, alphabet, n),
-                        -var_id(i, j + 1, idx2, alphabet, n)
-                    ])
-        elif direction == 'vertical':
-            for i in range(n - 1):
-                for j in range(n):
-                    solver.add_clause([
-                        -var_id(i,     j, idx1, alphabet, n),
-                        -var_id(i + 1, j, idx2, alphabet, n)
-                    ])
+    forbidden_clauses = forbidden_clauses(n,alphabet,forbidden_pairs)
+    for clause in forbidden_clauses:
+        solver.add_clause(clause)
     return solver
 
 # -----------------------------------------------------------------------------

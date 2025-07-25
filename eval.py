@@ -50,6 +50,51 @@ def subbox_all_negative_flags(stack, box_size):
     flags = np.all(subboxes < 0, axis=(1, 2))  # shape (N,)
     return flags.astype(np.int32)
 
+
+def unzip_forbidden_patterns(forbidden_patterns):
+     # Group forbidden patterns by direction
+    forbidden_horizontal = set()
+    forbidden_vertical = set()
+    for pair, direction in forbidden_patterns:
+        pair_tuple = tuple(pair)
+        if direction == "horizontal":
+            forbidden_horizontal.add(pair_tuple)
+        elif direction == "vertical":
+            forbidden_vertical.add(pair_tuple)
+        else:
+            raise ValueError(f"Unknown direction: {direction}")
+    return forbidden_horizontal,forbidden_vertical
+
+def check_forbidden_horizontal(arr,forbidden_horizontal,valid):
+    N, H, W = arr.shape
+    left = arr[:, :, :-1]    # (N, H, W-1)
+    right = arr[:, :, 1:]    # (N, H, W-1)
+    horz_pairs = np.stack([left, right], axis=-1)  # (N, H, W-1, 2)
+    horz_pairs_flat = horz_pairs.reshape(-1, 2)     # (N*(H)*(W-1), 2)
+
+    # Convert to tuple rows for matching
+    horz_tuples = np.array([tuple(x) for x in horz_pairs_flat])
+    matches = np.isin(horz_tuples.view([('', horz_tuples.dtype)]*2), 
+                            np.array(list(forbidden_horizontal), dtype=horz_tuples.dtype).view([('', horz_tuples.dtype)]*2))
+    matches = matches.reshape(N, H, W-1)
+    valid &= ~matches.any(axis=(1, 2))
+    return valid
+
+def check_forbidden_vertical(arr,forbidden_vertical,valid):
+    N, H, W = arr.shape
+    top = arr[:, :-1, :]     # (N, H-1, W)
+    bottom = arr[:, 1:, :]   # (N, H-1, W)
+    vert_pairs = np.stack([top, bottom], axis=-1)  # (N, H-1, W, 2)
+    vert_pairs_flat = vert_pairs.reshape(-1, 2)     # (N*(H-1)*W, 2)
+
+    # Convert to tuple rows for matching
+    vert_tuples = np.array([tuple(x) for x in vert_pairs_flat])
+    matches = np.isin(vert_tuples.view([('', vert_tuples.dtype)]*2), 
+                          np.array(list(forbidden_vertical), dtype=vert_tuples.dtype).view([('', vert_tuples.dtype)]*2))
+    matches = matches.reshape(N, H-1, W)
+    valid &= ~matches.any(axis=(1, 2))
+    return valid
+
 def check_forbidden_patterns(arr, forbidden_patterns):
     """
     Check in parallel which 2D patterns in a 3D array contain forbidden horizontal or vertical patterns.
@@ -64,48 +109,18 @@ def check_forbidden_patterns(arr, forbidden_patterns):
     arr_str = arr.astype(str)
     N, H, W = arr.shape
 
-    # Group forbidden patterns by direction
-    forbidden_horizontal = set()
-    forbidden_vertical = set()
-    for pair, direction in forbidden_patterns:
-        pair_tuple = tuple(pair)
-        if direction == "horizontal":
-            forbidden_horizontal.add(pair_tuple)
-        elif direction == "vertical":
-            forbidden_vertical.add(pair_tuple)
-        else:
-            raise ValueError(f"Unknown direction: {direction}")
+    forbidden_horizontal,forbidden_vertical = unzip_forbidden_patterns(forbidden_patterns)
 
     # Start with all valid
     valid = np.ones(N, dtype=bool)
 
     # --- Horizontal check ---
     if forbidden_horizontal:
-        left = arr_str[:, :, :-1]    # (N, H, W-1)
-        right = arr_str[:, :, 1:]    # (N, H, W-1)
-        horz_pairs = np.stack([left, right], axis=-1)  # (N, H, W-1, 2)
-        horz_pairs_flat = horz_pairs.reshape(-1, 2)     # (N*(H)*(W-1), 2)
-
-        # Convert to tuple rows for matching
-        horz_tuples = np.array([tuple(x) for x in horz_pairs_flat])
-        matches = np.isin(horz_tuples.view([('', horz_tuples.dtype)]*2), 
-                          np.array(list(forbidden_horizontal), dtype=horz_tuples.dtype).view([('', horz_tuples.dtype)]*2))
-        matches = matches.reshape(N, H, W-1)
-        valid &= ~matches.any(axis=(1, 2))
+        valid = check_forbidden_horizontal(arr=arr_str,forbidden_horizontal= forbidden_horizontal,valid=valid)
 
     # --- Vertical check ---
     if forbidden_vertical:
-        top = arr_str[:, :-1, :]     # (N, H-1, W)
-        bottom = arr_str[:, 1:, :]   # (N, H-1, W)
-        vert_pairs = np.stack([top, bottom], axis=-1)  # (N, H-1, W, 2)
-        vert_pairs_flat = vert_pairs.reshape(-1, 2)     # (N*(H-1)*W, 2)
-
-        # Convert to tuple rows for matching
-        vert_tuples = np.array([tuple(x) for x in vert_pairs_flat])
-        matches = np.isin(vert_tuples.view([('', vert_tuples.dtype)]*2), 
-                          np.array(list(forbidden_vertical), dtype=vert_tuples.dtype).view([('', vert_tuples.dtype)]*2))
-        matches = matches.reshape(N, H-1, W)
-        valid &= ~matches.any(axis=(1, 2))
+        valid = check_forbidden_vertical(arr=arr_str,forbidden_vertical=forbidden_vertical,valid=valid)
 
     return valid.astype(int)
 

@@ -24,9 +24,6 @@ from pattern_generator import generate_patterns
 from subpattern_extractor import keep_box_in_patterns, mask_crown_in_patterns, mask_subbox_in_patterns,keep_box_in_numpy_stack,mask_subbox_in_numpy_stack
 from utils import empty_folder
 
-FOLDER_PATH = "patterns"
-SAMPLES_PATH = "samples.json"
-
 def get_max_subshift_index(folder_path:str):
     """
     Scans the given folder and returns the maximum integer index `k` such that 
@@ -56,7 +53,9 @@ def generate_sample(alphabet:list[str],
                     num_samples:int,
                     subbox_size:int,
                     save_as_txt:bool,
-                    remove_previous_samples:bool):
+                    remove_previous_samples:bool,
+                    samples_path:str,
+                    folder_path:str):
     """
     Generates a given number of random SFTs by forbidding local patterns with 
     independent probability, and stores their descriptions and example patterns, as well as 
@@ -74,6 +73,8 @@ def generate_sample(alphabet:list[str],
         subbox_size (int): Size of the subbox used to extract subpatterns.
         save_as_txt (bool): if True, save the patterns as separate .txt files. Otherwise, save as a numpy array.
         remove_previous_samples (bool): if True, removes the previously created samples.
+        samples_path (str): specifies where to store the samples definitions (alphabet and forbidden patterns).
+        folder_path (str): specifies where to store the forbidden patterns.
     """
     if remove_previous_samples:
         with open("samples.json", "w") as f:
@@ -82,11 +83,11 @@ def generate_sample(alphabet:list[str],
         empty_folder("outside_subbox_masked_patterns")
         empty_folder("subbox_masked_patterns")
         empty_folder("crown_masked_patterns")
-    max_idx = get_max_subshift_index(FOLDER_PATH)
+    max_idx = get_max_subshift_index(folder_path)
 
     # Load or initialize the JSON dictionary storing forbidden pairs
-    if os.path.exists(SAMPLES_PATH) and os.path.getsize(SAMPLES_PATH) > 0:
-        with open(SAMPLES_PATH, 'r') as f:
+    if os.path.exists(samples_path) and os.path.getsize(samples_path) > 0:
+        with open(samples_path, 'r') as f:
             forbidden_dict = json.load(f)
     else:
         forbidden_dict = {}
@@ -107,7 +108,7 @@ def generate_sample(alphabet:list[str],
         forbidden_dict[name]["forbidden_pairs"] = forbidden_pairs
         forbidden_dict[name]["alphabet"] = alphabet
 
-        input_dir = os.path.join(FOLDER_PATH, name)
+        input_dir = os.path.join(folder_path, name)
         output_dir = os.path.join("subbox_masked_patterns",name)
 
         input_path = os.path.join(input_dir,"all_patterns.npy")
@@ -136,7 +137,7 @@ def generate_sample(alphabet:list[str],
 
 
     # Save updated forbidden pair records to JSON file
-    with open(SAMPLES_PATH, 'w') as f:
+    with open(samples_path, 'w') as f:
         json.dump(forbidden_dict, f, indent=2)
 
 if __name__ == "__main__":
@@ -153,6 +154,8 @@ if __name__ == "__main__":
     MAX_PATTERNS = config["max_patterns"]
     NUM_SAMPLES  = config["num_samples"]
     SUBBOX_SIZE  = config["subbox_size"]
+    SAMPLES_PATH = config["samples_path"]
+    FOLDER_PATH = config["folder_path"]
 
     generate_sample(alphabet=ALPHABET, 
                     forbid_prob=FORBID_PROB, 
@@ -161,4 +164,6 @@ if __name__ == "__main__":
                     num_samples=NUM_SAMPLES,
                     subbox_size=SUBBOX_SIZE,
                     save_as_txt=False,
-                    remove_previous_samples=True)
+                    remove_previous_samples=True,
+                    samples_path=SAMPLES_PATH,
+                    folder_path=FOLDER_PATH)
