@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from pattern_generator import var_id, decode_model,forbidden_clauses
+from pattern_generator import var_id, decode_model,encode_forbidden_clauses
 
 # === Unit tests ===
 
@@ -64,7 +64,7 @@ class TestForbiddenClauses(unittest.TestCase):
 
     def test_horizontal_forbidden_pair(self):
         forbidden = [(('0', '1'), 'horizontal')]
-        clauses = forbidden_clauses(self.n, self.alphabet, forbidden)
+        clauses = encode_forbidden_clauses(self.n, self.alphabet, forbidden)
 
         expected = [
             [-var_id(0, 0, 0, self.alphabet, self.n), -var_id(0, 1, 1, self.alphabet, self.n)],
@@ -75,7 +75,7 @@ class TestForbiddenClauses(unittest.TestCase):
 
     def test_vertical_forbidden_pair(self):
         forbidden = [(('1', '0'), 'vertical')]
-        clauses = forbidden_clauses(self.n, self.alphabet, forbidden)
+        clauses = encode_forbidden_clauses(self.n, self.alphabet, forbidden)
 
         expected = [
             [-var_id(0, 0, 1, self.alphabet, self.n), -var_id(1, 0, 0, self.alphabet, self.n)],
@@ -89,11 +89,11 @@ class TestForbiddenClauses(unittest.TestCase):
             (('0', '1'), 'horizontal'),
             (('1', '0'), 'vertical'),
         ]
-        clauses = forbidden_clauses(self.n, self.alphabet, forbidden)
+        clauses = encode_forbidden_clauses(self.n, self.alphabet, forbidden)
         self.assertEqual(len(clauses), 4)  # 2 horizontal + 2 vertical
 
     def test_no_forbidden(self):
-        clauses = forbidden_clauses(self.n, self.alphabet, [])
+        clauses = encode_forbidden_clauses(self.n, self.alphabet, [])
         self.assertEqual(clauses, [])
 
 if __name__ == '__main__':
