@@ -63,8 +63,6 @@ def decode_model(model:list[int], alphabet:list[str], n:int):
     """
     pattern = {}
     for i, j in product(range(n), repeat=2):
-        if (i, j) not in pattern:
-            raise ValueError(f"No symbol assigned at position ({i}, {j}). Possibly invalid model.")
         for k in range(len(alphabet)):
             if var_id(i, j, k, alphabet, n) in model:
                 pattern[(i, j)] = alphabet[k]
@@ -74,7 +72,7 @@ def decode_model(model:list[int], alphabet:list[str], n:int):
 # Encoding of SFT constraints
 # -----------------------------------------------------------------------------
 
-def forbidden_clauses(n,alphabet,forbidden_pairs):
+def encode_forbidden_clauses(n,alphabet,forbidden_pairs):
     clauses = []
     for ((a1, a2), direction) in forbidden_pairs:
         idx1 = alphabet.index(a1)
@@ -119,7 +117,7 @@ def encode_sft(n:int, alphabet:list[str], forbidden_pairs):
         solver.append_formula(CardEnc.atleast(lits=vars_ij, bound=1, encoding=EncType.pairwise))
         solver.append_formula(CardEnc.atmost(lits=vars_ij, bound=1, encoding=EncType.pairwise))
 
-    forbidden_clauses = forbidden_clauses(n,alphabet,forbidden_pairs)
+    forbidden_clauses = encode_forbidden_clauses(n,alphabet,forbidden_pairs)
     for clause in forbidden_clauses:
         solver.add_clause(clause)
     return solver
@@ -158,6 +156,9 @@ def generate_patterns(n, alphabet, max_patterns, name, forbidden_pairs,save_as_t
 
     # Create output directory
     import os
+
+    if not os.path.exists("patterns"):
+        os.makedirs("patterns")
     output_dir = os.path.join("patterns", name)
     os.makedirs(output_dir, exist_ok=True)
 
