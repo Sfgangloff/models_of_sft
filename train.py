@@ -1,5 +1,5 @@
 import torch
-from data.sft_data import SFTDataModule, get_data
+from data.sft_datamodule import SFTDataModule, get_data
 from model.wrapper import LitModel
 import pytorch_lightning as pl
 import hydra
@@ -14,7 +14,7 @@ import random
 
 logging.basicConfig(level=logging.INFO)
 
-@hydra.main(config_path="conf", config_name="config")
+@hydra.main(version_base="1.3",config_path="conf", config_name="config")
 def main(cfg: DictConfig):
 
     seed = 0
@@ -22,12 +22,11 @@ def main(cfg: DictConfig):
     np.random.seed(seed)
     random.seed(seed)
 
-    model_signature = f"GNN_SFT"
+    model_signature = cfg.model.name.capitalize() + "_SFT"
     logging.info(f"Model signature: {model_signature}")
 
     wrapped_model = LitModel(
         cfg=cfg,
-        lr=cfg.train.lr,
         weight_decay=cfg.train.weight_decay,
     )
 
@@ -39,6 +38,7 @@ def main(cfg: DictConfig):
         data=data,
         batch_size=cfg.data.batch_size,
         num_workers=cfg.data.num_workers,
+        model_name = cfg.model.name
     )
 
     trainer = pl.Trainer(

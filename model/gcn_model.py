@@ -3,7 +3,7 @@ from torch_geometric.nn import GCNConv
 import torch.nn as nn
 import torch.nn.functional as F
 
-class GNNModel(nn.Module):
+class GCNModel(nn.Module):
     """
     Graph Neural Network for node-level classification based on repeated message passing.
 
@@ -16,7 +16,7 @@ class GNNModel(nn.Module):
     The input node features are assumed to be discrete integers representing node types.
     """
 
-    def __init__(self,size_alphabet,embed_dim, num_hidden):
+    def __init__(self,size_alphabet,embed_dim, num_hidden,number_iterations):
         """
         Initializes the GNNModel.
 
@@ -31,35 +31,11 @@ class GNNModel(nn.Module):
         self.input_proj = nn.Linear(size_alphabet+1, embed_dim, bias=False)
         self.shared_conv = GCNConv(embed_dim, num_hidden)
         self.decoder = GCNConv(num_hidden, size_alphabet+1)
+        self.number_iterations = number_iterations
 
         self.num_node_types = size_alphabet+1
 
-    # def forward(self, data):
-    #     """
-    #     Forward pass of the GNNModel.
-
-    #     Parameters:
-    #         data (torch_geometric.data.Data): Graph data object containing:
-    #             - x: LongTensor of shape (num_nodes, 1) with integer-encoded node types.
-    #             - edge_index: LongTensor of shape (2, num_edges) representing the graph connectivity.
-
-    #     Returns:
-    #         torch.Tensor: Tensor of shape (num_nodes, num_classes), where each row contains
-    #                       the class logits for a node.
-    #     """
-    #     x, edge_index = data.x, data.edge_index
-
-    #     x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
-    #     x = self.input_proj(x)  # Shape: (num_nodes, embed_dim)
-
-    #     for _ in range(self.num_iterations):
-    #         x = F.relu(self.shared_conv(x, edge_index))
-
-    #     x = self.decoder(x, edge_index)  # Shape: (num_nodes, num_classes)
-
-    #     return x
-
-    def forward(self, data, num_iterations):
+    def forward(self, data):
         """
         Forward pass of the GNN model.
 
@@ -69,15 +45,14 @@ class GNNModel(nn.Module):
         Returns:
             torch.Tensor: Output tensor of shape (num_nodes, 1) with predicted values.
         """
-        # TODO: use -100 on ground truth to ignore the correspondinglabels.
-        # TODO: ultimately, use random values instead of * or -1 ? 
+
         x, edge_index = data.x, data.edge_index
         
         x = F.one_hot(x.squeeze().long(), num_classes=self.num_node_types).float()
         x = self.input_proj(x)  # Now shape (num_nodes, embed_dim)
 
         # Repeated application of same convolutional layer
-        for _ in range(num_iterations):
+        for _ in range(self.number_iterations):
             x = F.relu(self.shared_conv(x, edge_index))
 
         # Final decoder layer

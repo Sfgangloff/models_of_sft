@@ -1,9 +1,24 @@
 system:
     base_dir: ""
 model:
-    embedding_dimensions : 64
-    hidden_dimensions : 64
-    number_iterations : 7
+  name: bipartite
+
+  parameters:
+    gcn:
+      _target_: model.gcn_model.GCNModel
+      size_alphabet: ${len:${data.alphabet}}
+      embed_dim: 64
+      num_hidden: 64
+      number_iterations: 7
+
+    bipartite:
+      _target_: model.bipartite_model.GNN_SAT
+      d_model: 256
+      update_type: lstm
+      graph_type: lit
+      collect_embeddings: false
+      number_iterations: 7
+
 train:
     num_epochs: 50
     lr: 0.01 #2e-5

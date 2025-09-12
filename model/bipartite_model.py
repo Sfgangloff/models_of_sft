@@ -87,7 +87,7 @@ class ClauseToLitLayer(BaseMessageLayer):
         return new_hidden
 
 class ClauseToVarLayer(BaseMessageLayer):
-    def forward(self, adj_t, x_c, hidden, v_batch):
+    def forward(self, adj_t, x_c, hidden):
         msg = matmul(adj_t.t(), x_c)
         x_v = hidden[0]
         
@@ -102,11 +102,12 @@ class ClauseToVarLayer(BaseMessageLayer):
         return new_hidden
 
 class GNN_SAT(nn.Module):    
-    def __init__(self, d_model, update_type='lstm', graph_type='lit', collect_embeddings=False):
+    def __init__(self, d_model, number_iterations, update_type='lstm', graph_type='lit', collect_embeddings=False):
         super().__init__()
         self.d_model = d_model
         self.graph_type = graph_type
         self.collect_embeddings = collect_embeddings
+        self.number_iterations = number_iterations
         
         if graph_type == 'lit':
             self.unk_to_clause = LitToClauseLayer(d_model, update_type)
@@ -144,7 +145,7 @@ class GNN_SAT(nn.Module):
         c_hidden = (x_c, x_c_h)    
         return unk_hidden, c_hidden
 
-    def forward(self, data, num_iters):
+    def forward(self, data):
         device = self.get_x(data).device
         unk_hidden, c_hidden = self.random_init_embeddings(data,device)        
         all_unk_votes = []
@@ -153,7 +154,7 @@ class GNN_SAT(nn.Module):
         batch = self.get_batch(data)
         adj = self.get_adj(data)
         
-        for _ in range(num_iters):
+        for _ in range(self.number_iterations):
             c_hidden = self.unk_to_clause(adj, unk_hidden[0], c_hidden)
             unk_hidden = self.clause_to_unk(adj, c_hidden[0], unk_hidden, batch)
             if self.collect_embeddings:

@@ -1,5 +1,4 @@
-from .sft_data import SFTDataModule, get_data
-
+from .sft_datamodule import SFTDataModule, get_data
 
 __all__ = [
     'SFTDataModule',
