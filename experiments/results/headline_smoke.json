@@ -1,0 +1,66 @@
+{
+  "config": {
+    "q": 3,
+    "N": 8,
+    "rho": 0.3,
+    "K": 6,
+    "n_train_worlds": 16,
+    "n_oow_worlds": 8,
+    "n_configs": 40,
+    "eval_hold": 10,
+    "M_list": [
+      1,
+      4,
+      16
+    ],
+    "seeds": [
+      0
+    ],
+    "steps": 150,
+    "batch": 32,
+    "lr": 0.0003,
+    "d_model": 64,
+    "nhead": 4,
+    "layers": 2,
+    "dim_ff": 128,
+    "n_eval_episodes": 400
+  },
+  "baselines": {
+    "majority": 0.5,
+    "frequency_learner_oow": 0.9789719626168225
+  },
+  "runs": [
+    {
+      "M": 1,
+      "seed": 0,
+      "iw_bacc": 0.5,
+      "iw_auc": 0.5009394022896365,
+      "oow_bacc": 0.49844236760124605,
+      "oow_auc": 0.5172093256959099,
+      "secs": 88.9625871181488
+    },
+    {
+      "M": 4,
+      "seed": 0,
+      "iw_bacc": 0.5,
+      "iw_auc": 0.5235406795039822,
+      "oow_bacc": 0.5,
+      "oow_auc": 0.5264295045724048,
+      "secs": 71.47031617164612
+    },
+    {
+      "M": 16,
+      "seed": 0,
+      "iw_bacc": 0.5,
+      "iw_auc": 0.527518224404419,
+      "oow_bacc": 0.5,
+      "oow_auc": 0.49125716008441356,
+      "secs": 68.03352689743042
+    }
+  ],
+  "mismatched_context_control": {
+    "M": 16,
+    "oow_matched_ref": null,
+    "mismatched_bacc": 0.5
+  }
+}

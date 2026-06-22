@@ -1,0 +1,15 @@
+{
+  "rho": 0.5,
+  "M": 48,
+  "n_forced": 3607,
+  "steps": 2500,
+  "model": "d96 L4",
+  "rule_forced_iw": 0.8949,
+  "rule_forced_oow": 0.8439,
+  "blind_forced_oow": 0.7937,
+  "mismatch_forced_oow": 0.616,
+  "chance": 0.3333,
+  "rule_compl_oow": 0.424,
+  "blind_compl_oow": 0.38,
+  "note": "Forced cell = masked cell whose value is uniquely determined by rules+observed neighbours. Mismatch=correct grid, wrong rules."
+}

@@ -1,0 +1,41 @@
+{
+  "config": {
+    "q": 3,
+    "N": 6,
+    "k_forb": 7,
+    "M": 18,
+    "steps": 1500
+  },
+  "pools": [
+    {
+      "pool": "low",
+      "kappa1_mean": 0.6666666666666666,
+      "coverage": 18,
+      "configs_mean": 38.888888888888886,
+      "forcing_density": 0.45004454626447754,
+      "oow_forced_acc": 0.6378573775879067,
+      "n_forced": 3043,
+      "secs": 140.1817328929901
+    },
+    {
+      "pool": "mid",
+      "kappa1_mean": 2.0,
+      "coverage": 18,
+      "configs_mean": 39.388888888888886,
+      "forcing_density": 0.49104235607314073,
+      "oow_forced_acc": 0.6204403549129149,
+      "n_forced": 3043,
+      "secs": 130.74349880218506
+    },
+    {
+      "pool": "high",
+      "kappa1_mean": 3.0,
+      "coverage": 18,
+      "configs_mean": 38.27777777777778,
+      "forcing_density": 0.5515206363938577,
+      "oow_forced_acc": 0.6588892540256326,
+      "n_forced": 3043,
+      "secs": 113.12968897819519
+    }
+  ]
+}

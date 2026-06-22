@@ -1,0 +1,8 @@
+# Dependencies for the cross-world generalization experiments (experiments/).
+# Install with:  pip install -r experiments/requirements.txt
+torch>=2.0
+numpy>=1.24
+python-sat>=0.1.8.dev1   # provides the `pysat` module (SAT solvers: Cadical153)
+scikit-learn>=1.2        # balanced_accuracy_score, roc_auc_score
+matplotlib>=3.6          # figures
+pyyaml>=6.0              # used by the repo's older scripts

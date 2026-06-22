@@ -1,0 +1,36 @@
+{
+  "config": {
+    "Q": 3,
+    "N": 6,
+    "K": 4,
+    "rho": 0.3,
+    "d_model": 48,
+    "layers": 2,
+    "M_list": [
+      1,
+      8,
+      32
+    ],
+    "steps": 700,
+    "batch": 16
+  },
+  "frequency_learner_oow": 0.9785276073619632,
+  "runs": [
+    {
+      "M": 1,
+      "iw": 0.8081091930951425,
+      "oow": 0.5
+    },
+    {
+      "M": 8,
+      "iw": 0.5,
+      "oow": 0.5
+    },
+    {
+      "M": 32,
+      "iw": 0.5,
+      "oow": 0.5
+    }
+  ],
+  "mismatched_context_oow": 0.5
+}
